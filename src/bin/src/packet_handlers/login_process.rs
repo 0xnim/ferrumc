@@ -1,4 +1,5 @@
-use ferrumc_config::statics::{get_global_config, get_whitelist, write_whitelist_to_file};
+use ferrumc_config::statics::{get_global_config};
+use ferrumc_config::whitelist::{update_whitelist, check_whitelist};
 use ferrumc_core::identity::player_identity::PlayerIdentity;
 use ferrumc_core::transform::grounded::OnGround;
 use ferrumc_core::transform::position::Position;
@@ -27,6 +28,7 @@ use ferrumc_net::packets::outgoing::synchronize_player_position::SynchronizePlay
 use ferrumc_net_codec::encode::NetEncodeOpts;
 use ferrumc_state::GlobalState;
 use tracing::{debug, trace};
+use uuid::Uuid;
 
 #[event_handler]
 async fn handle_login_start(
@@ -45,16 +47,10 @@ async fn handle_login_start(
         .get_mut::<StreamWriter>(login_start_event.conn_id)?;
 
     if get_global_config().whitelist {
-        let whitelist = get_whitelist();
-
-        if let Some(whitelist_entry) = whitelist.get(&uuid) {
-            let stored_name = whitelist_entry.value();
-            if stored_name != username {
-                let old_val = whitelist.insert(uuid, username.to_string());
-                debug!("Username changed from {old_val:?} to {username}");
-                //rewrite the whitelist file to keep usernames up to date
-                write_whitelist_to_file();
-            }
+        if check_whitelist(Uuid::from_u128(uuid)) {
+            let old_val = update_whitelist(Uuid::from_u128(uuid), username.to_string());
+            let username = player_identity.username.clone();
+            debug!("Username changed from {old_val:?} to {username}");
         } else {
             writer
                 .send_packet(

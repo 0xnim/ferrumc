@@ -1,4 +1,5 @@
 use crate::server_config::ServerConfig;
+use crate::whitelist::{read_whitelist_file};
 use dashmap::DashMap;
 use ferrumc_general_purpose::paths::get_root_path;
 use lazy_static::lazy_static;
@@ -6,7 +7,6 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::process::exit;
 use tracing::{error, info};
-use uuid::Uuid;
 
 /// The default server configuration that is stored in memory.
 pub(crate) const DEFAULT_CONFIG: &str = include_str!("../../../../../.etc/example-config.toml");
@@ -15,7 +15,7 @@ lazy_static! {
     /// The server configuration that is stored in memory.
     static ref CONFIG: ServerConfig = create_config();
     /// The whitelist of player uuids.
-    static ref WHITELIST: DashMap<u128, String> = create_whitelist();
+    pub static ref WHITELIST: DashMap<u128, String> = read_whitelist_file();
 }
 fn create_config() -> ServerConfig {
     let config_location = get_root_path().join("config.toml");
@@ -71,90 +71,6 @@ fn create_config() -> ServerConfig {
                 exit(1);
             }
         }
-    }
-}
-
-fn create_whitelist() -> DashMap<u128, String> {
-    let whitelist_location = get_root_path().join("whitelist.txt");
-    if !whitelist_location.exists() {
-        write_whitelist_to_file();
-    }
-
-    let mut file = match File::open(&whitelist_location) {
-        Ok(file) => file,
-        Err(e) => {
-            error!("Could not open white-list file: {e}");
-            return DashMap::new();
-        }
-    };
-
-    let mut whitelist_str = String::new();
-    if let Err(e) = file.read_to_string(&mut whitelist_str) {
-        error!("Could not read white-list file: {e}");
-        return DashMap::new();
-    }
-
-    if whitelist_str.is_empty() {
-        return DashMap::new();
-    }
-
-    //read and split the file, its username:uuid format
-    let whitelist: DashMap<u128, String> = DashMap::new();
-    for (i, line) in whitelist_str.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-
-        let mut split = line.split(':');
-        let name = match split.next() {
-            Some(name) => name,
-            None => {
-                error!("Invalid line {} in whitelist (missing name): {line}", i + 1);
-                continue;
-            }
-        };
-
-        let uuid_str = match split.next() {
-            Some(uuid_str) => uuid_str,
-            None => {
-                error!("Invalid line {} in whitelist (missing UUID): {line}", i + 1);
-                continue;
-            }
-        };
-
-        let u128_uuid = match Uuid::try_parse(uuid_str) {
-            Ok(uuid) => uuid.as_u128(),
-            Err(e) => {
-                error!("Invalid uuid in whitelist on line {}: {line}: {e}", i + 1);
-                continue;
-            }
-        };
-
-        whitelist.insert(u128_uuid, name.to_string());
-    }
-    whitelist
-}
-
-pub fn write_whitelist_to_file() {
-    let whitelist: &DashMap<u128, String> = get_whitelist();
-    let whitelist_location = get_root_path().join("whitelist.txt");
-
-    if let Err(e) = File::create(&whitelist_location).and_then(|mut file| {
-        file.write_all(
-            b"# This is the whitelist file.\n\
-        # Each seperate line is a name and uuid seperated by :\n\
-        # Eg. DefinitelyARealUser:00000000-0000-0000-0000-000000000000\n",
-        )
-        .and_then(|_| {
-            whitelist.iter().try_for_each(|entry| {
-                let uuid_str = Uuid::from_u128(*entry.key()).hyphenated().to_string();
-                let line = format!("{}:{}\n", entry.value(), uuid_str);
-                file.write_all(line.as_bytes())
-            })
-        })
-    }) {
-        error!("Failed to save whitelist: {e}");
     }
 }
 
