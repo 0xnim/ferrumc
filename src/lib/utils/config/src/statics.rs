@@ -1,8 +1,10 @@
+use crate::errors::ConfigError;
 use crate::server_config::ServerConfig;
 use crate::whitelist::{read_whitelist_file};
 use dashmap::DashMap;
 use ferrumc_general_purpose::paths::get_root_path;
 use lazy_static::lazy_static;
+use regex::Regex;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::process::exit;
@@ -78,6 +80,6 @@ pub fn get_global_config() -> &'static ServerConfig {
     &CONFIG
 }
 
-pub fn get_whitelist() -> &'static DashMap<u128, String> {
+pub fn get_whitelist() -> &'static DashSet<u128> {
     &WHITELIST
 }
