@@ -10,6 +10,7 @@ use ferrumc_net::packets::incoming::ack_finish_configuration::AckFinishConfigura
 use ferrumc_net::packets::incoming::keep_alive::IncomingKeepAlivePacket;
 use ferrumc_net::packets::incoming::login_acknowledged::LoginAcknowledgedEvent;
 use ferrumc_net::packets::incoming::login_start::LoginStartEvent;
+use ferrumc_net::packets::outgoing::encryption::EncryptionRequestPacket;
 use ferrumc_net::packets::incoming::server_bound_known_packs::ServerBoundKnownPacksEvent;
 use ferrumc_net::packets::outgoing::client_bound_known_packs::ClientBoundKnownPacksPacket;
 use ferrumc_net::packets::outgoing::finish_configuration::FinishConfigurationPacket;
@@ -37,6 +38,26 @@ async fn handle_login_start(
     let username = login_start_event.login_start_packet.username.as_str();
     debug!("Received login start from user with username {}", username);
 
+    let mut writer = state
+        .universe
+        .get_mut::<StreamWriter>(login_start_event.conn_id)?;
+
+
+    // #=================== AUTH ===================#
+
+    writer
+        .send_packet(
+            &EncryptionRequestPacket::new(),
+            &NetEncodeOpts::WithLength
+        )
+        .await?;
+
+
+
+
+
+    // #=================== AUTH ===================#
+
     // Add the player identity component to the ECS for the entity.
     state.universe.add_component::<PlayerIdentity>(
         login_start_event.conn_id,
@@ -44,10 +65,6 @@ async fn handle_login_start(
     )?;
 
     //Send a Login Success Response to further the login sequence
-    let mut writer = state
-        .universe
-        .get_mut::<StreamWriter>(login_start_event.conn_id)?;
-
     writer
         .send_packet(
             &LoginSuccessPacket::new(uuid, username),

@@ -14,6 +14,8 @@ world = "world"
 # Very small packets may actually increase in size when compressed, so setting it to 0 won't be perfect in all situations.
 # Set to -1 to disable compression.
 network_compression_threshold = 64
+# If true, the server will not authenticate with the Mojang servers.
+offline_mode = false
 
 # Database configuration
 [database]

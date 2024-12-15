@@ -25,6 +25,7 @@ pub struct ServerConfig {
     pub database: DatabaseConfig,
     pub world: String,
     pub network_compression_threshold: i32, // Can be negative
+    pub offline_mode: bool,
 }
 
 /// The database configuration section from [ServerConfig].

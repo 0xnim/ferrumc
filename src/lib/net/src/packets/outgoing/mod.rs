@@ -14,3 +14,4 @@ pub mod set_render_distance;
 pub mod status_response;
 pub mod synchronize_player_position;
 pub mod update_time;
+pub mod encryption;

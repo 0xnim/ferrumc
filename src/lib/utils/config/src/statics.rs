@@ -10,12 +10,16 @@ use std::io::{Read, Write};
 use std::process::exit;
 use tracing::{error, info};
 
+use ferrumc_net_encryption::{generate_keypair, KeyPair};
+
 /// The default server configuration that is stored in memory.
 pub(crate) const DEFAULT_CONFIG: &str = include_str!("../../../../../.etc/example-config.toml");
 
 lazy_static! {
     /// The server configuration that is stored in memory.
     static ref CONFIG: ServerConfig = create_config();
+    /// The public key of the server.
+    static ref KEY_PAIR: KeyPair = generate_keypair().expect("Failed to generate keypair");
 }
 fn create_config() -> ServerConfig {
     let config_location = get_root_path().join("config.toml");
@@ -76,4 +80,8 @@ fn create_config() -> ServerConfig {
 
 pub fn get_global_config() -> &'static ServerConfig {
     &CONFIG
+}
+
+pub fn get_public_key() -> &'static Vec<u8> {
+    &KEY_PAIR.public_key
 }
