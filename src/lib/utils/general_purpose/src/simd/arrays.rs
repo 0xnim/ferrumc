@@ -227,3 +227,25 @@ unsafe fn u64_slice_to_u8_be_simd(input: &[u64]) -> Vec<u8> {
 
     output
 }
+
+/// Converts a slice of `i32` to a `Vec<u8>` in big-endian order.
+/// This is a wrapper around `u32_slice_to_u8_be`.
+pub fn i32_slice_to_u8_be(input: &[i32]) -> Vec<u8> {
+    // SAFETY: i32 and u32 have the same size, alignment, and memory layout.
+    // The underlying byte-swapping operation is identical for both.
+    let u32_slice = unsafe {
+        std::slice::from_raw_parts(input.as_ptr() as *const u32, input.len())
+    };
+    u32_slice_to_u8_be(u32_slice)
+}
+
+/// Converts a slice of `i64` to a `Vec<u8>` in big-endian order.
+/// This is a wrapper around `u64_slice_to_u8_be`.
+pub fn i64_slice_to_u8_be(input: &[i64]) -> Vec<u8> {
+    // SAFETY: i64 and u64 have the same size, alignment, and memory layout.
+    // The underlying byte-swapping operation is identical for both.
+    let u64_slice = unsafe {
+        std::slice::from_raw_parts(input.as_ptr() as *const u64, input.len())
+    };
+    u64_slice_to_u8_be(u64_slice)
+}
