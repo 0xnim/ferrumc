@@ -33,28 +33,8 @@ impl World {
         Ok(())
     }
 
-    fn get_chunk_count(&self, import_dir: &Path) -> Result<u64, WorldError> {
-        info!("Counting chunks in import directory...");
-        let regions_dir = import_dir.join("region").read_dir()?;
-        let chunk_count = AtomicU64::new(0);
-
-        regions_dir
-            .par_bridge()
-            .try_for_each(|region_file| -> Result<(), WorldError> {
-                let entry = region_file?;
-                if entry.path().is_dir() {
-                    return Ok(());
-                }
-
-                if let Ok(anvil_file) = load_anvil_file(entry.path()) {
-                    chunk_count
-                        .fetch_add(anvil_file.get_locations().len() as u64, Ordering::Relaxed);
-                }
-                Ok(())
-            })?;
-
-        Ok(chunk_count.load(Ordering::Relaxed))
-    }
+    // This function is no longer needed, as its logic is now efficiently
+    // integrated into the `import` function.
 
     pub fn import(
         &mut self,
@@ -64,42 +44,56 @@ impl World {
     ) -> Result<(), WorldError> {
         check_paths_validity(&import_dir)?;
 
-        let total_chunks = self.get_chunk_count(&import_dir)?;
-        let progress_style = ProgressStyle::default_bar()
-            .template("[{elapsed_precise}/{eta_precise} eta] {bar:40.cyan/blue} {percent}%, {pos:>7}/{len:7}, {per_sec}, {msg}")
-            .unwrap();
-
-        let progress = Arc::new(ProgressBar::new(total_chunks));
-        progress.set_style(progress_style);
-
         self.storage_backend.create_table("chunks".to_string())?;
-
-        info!("Starting chunk import...");
-        let start = std::time::Instant::now();
-
+        
+        info!("Scanning region files and counting chunks...");
         let regions_dir = import_dir.join("region").read_dir()?;
-        let mut current_batch = Vec::with_capacity(batch_size);
+        let mut loaded_regions = Vec::new();
+        let mut total_chunks = 0u64;
 
-        let remaining_tasks = Arc::new(AtomicU32::new(0));
-
+        // This is now the ONLY pass over the filesystem.
         for region_result in regions_dir {
             let region_entry = region_result?;
             if region_entry.path().is_dir() {
                 continue;
             }
 
-            let anvil_file = match load_anvil_file(region_entry.path()) {
-                Ok(file) => file,
+            match load_anvil_file(region_entry.path()) {
+                Ok(anvil_file) => {
+                    // Use the new, efficient location_count() method. No allocations!
+                    total_chunks += anvil_file.location_count() as u64;
+                    // Store the loaded file to reuse it later. No more loading twice!
+                    loaded_regions.push(anvil_file);
+                }
                 Err(e) => {
                     error!(
-                        "Failed to load region file {}: {}",
-                        region_entry.path().display(),
-                        e
-                    );
-                    continue;
+                    "Failed to load region file {}: {}",
+                    region_entry.path().display(),
+                    e
+                );
                 }
-            };
+            }
+        }
+        
+        if total_chunks == 0 {
+            info!("No chunks found to import.");
+            return Ok(());
+        }
 
+        let progress_style = ProgressStyle::default_bar()
+            .template("[{elapsed_precise}/{eta_precise} eta] {bar:40.cyan/blue} {percent}%, {pos:>7}/{len:7}, {per_sec}, {msg}")
+            .unwrap();
+        let progress = Arc::new(ProgressBar::new(total_chunks));
+        progress.set_style(progress_style);
+
+        info!("Starting chunk import...");
+        let start = std::time::Instant::now();
+
+        let mut current_batch = Vec::with_capacity(batch_size);
+        let remaining_tasks = Arc::new(AtomicU32::new(0));
+
+
+        for anvil_file in loaded_regions {
             for location in anvil_file.get_locations() {
                 let remaining_tasks_clone = remaining_tasks.clone();
                 if let Ok(Some(chunk_data)) = anvil_file.get_chunk_from_location(location) {

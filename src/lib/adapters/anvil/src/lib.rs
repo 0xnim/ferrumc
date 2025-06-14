@@ -221,6 +221,13 @@ impl LoadedAnvilFile {
             (chunk_data[0] << 24) | (chunk_data[1] << 16) | (chunk_data[2] << 8) | chunk_data[3];
         self.get_chunk_from_location(location)
     }
+
+    pub fn location_count(&self) -> usize {
+        self.table
+            .chunks_exact(4)
+            .filter(|&location_bytes| location_bytes != &[0, 0, 0, 0])
+            .count()
+    }
 }
 
 #[cfg(test)]
