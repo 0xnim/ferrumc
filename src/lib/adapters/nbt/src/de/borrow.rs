@@ -662,7 +662,7 @@ impl NbtTapeElement<'_> {
         tape: &mut NbtTape,
         writer: &mut Vec<u8>,
         opts: &NBTSerializeOptions,
-    ) -> NetEncodeResult<()> {
+    ) -> Result<(), NetEncodeError> {
 
         match self {
             NbtTapeElement::End => Ok(()),
