@@ -3,9 +3,8 @@
 use crate::de::converter::FromNbt;
 use crate::{NBTSerializable, NBTSerializeOptions};
 use ferrumc_general_purpose::simd::arrays;
-use ferrumc_net_codec::encode::errors::NetEncodeError;
-use ferrumc_net_codec::encode::{NetEncode, NetEncodeOpts};
-use std::io::Write;
+use ferrumc_net_codec::encode::{NetEncode, NetEncodeOpts, NetEncodeError};
+  use std::io::Write;
 use std::mem::size_of;
 use std::sync::Arc;
 use tokio::io::AsyncWrite;
@@ -211,7 +210,7 @@ impl<'a> NbtTape<'a> {
                     depth: 0,
                     root: None,
                 };
-                let mut elements = vec![];
+                let mut elements = Vec::with_capacity(*size);
                 for _ in 0..*size {
                     let nbt_element = NbtTapeElement::parse_from_nbt(
                         &mut tape,
@@ -228,52 +227,70 @@ impl<'a> NbtTape<'a> {
                 if size_of::<T>() != size_of::<i8>() {
                     panic!("Invalid type conversion!");
                 }
-                let data_vec = (*data).to_vec();
-                let data =
-                    unsafe { std::mem::transmute::<Vec<i8>, Vec<T>>(data_vec) };
-                Some(data)
+                let mut result = Vec::with_capacity(data.len());
+                for &byte in data.iter() {
+                    result.push(unsafe { std::mem::transmute(byte) });
+                }
+                Some(result)
             }
             NbtTapeElement::IntArray(data) => {
-                let data_vec = data.to_vec();
-                let data =
-                    unsafe { std::mem::transmute::<Vec<i32>, Vec<T>>(data_vec) };
-                Some(data)
+                if size_of::<T>() != size_of::<i32>() {
+                    panic!("Invalid type conversion!");
+                }
+                let mut result = Vec::with_capacity(data.len());
+                for &val in data.iter() {
+                    result.push(unsafe { std::mem::transmute(val) });
+                }
+                Some(result)
             }
             NbtTapeElement::LongArray(data) => {
-                let data_vec = data.to_vec();
-                let data =
-                    unsafe { std::mem::transmute::<Vec<i64>, Vec<T>>(data_vec) };
-                Some(data)
+                if size_of::<T>() != size_of::<i64>() {
+                    panic!("Invalid type conversion!");
+                }
+                let mut result = Vec::with_capacity(data.len());
+                for &val in data.iter() {
+                    result.push(unsafe { std::mem::transmute(val) });
+                }
+                Some(result)
             }
             _ => None,
         }
     }
 
-    pub fn unpack_list_sliced<T: NbtDeserializable<'a>>(
+    pub fn unpack_list_sliced<T: NbtDeserializable<'a> + Clone>(
         &self,
         element: &NbtTapeElement<'a>,
-    ) -> Option<&'a [T]> {
+    ) -> Option<Vec<T>> {
         match element {
             NbtTapeElement::ByteArray(data) => {
                 if size_of::<T>() != size_of::<i8>() {
                     return None;
                 }
-                let data = unsafe { std::mem::transmute::<&[i8], &[T]>(data) };
-                Some(data)
+                let mut result = Vec::with_capacity(data.len());
+                for &byte in data.iter() {
+                    result.push(unsafe { std::mem::transmute(byte) });
+                }
+                Some(result)
             }
             NbtTapeElement::IntArray(data) => {
                 if size_of::<T>() != size_of::<i32>() {
                     return None;
                 }
-                let data = unsafe { std::mem::transmute::<&[i32], &[T]>(data) };
-                Some(data)
+                let mut result = Vec::with_capacity(data.len());
+                for &val in data.iter() {
+                    result.push(unsafe { std::mem::transmute(val) });
+                }
+                Some(result)
             }
             NbtTapeElement::LongArray(data) => {
                 if size_of::<T>() != size_of::<i64>() {
                     return None;
                 }
-                let data = unsafe { std::mem::transmute::<&[i64], &[T]>(data) };
-                Some(data)
+                let mut result = Vec::with_capacity(data.len());
+                for &val in data.iter() {
+                    result.push(unsafe { std::mem::transmute(val) });
+                }
+                Some(result)
             }
             _ => None,
         }
@@ -621,11 +638,7 @@ mod general {
 }
 
 impl NetEncode for NbtTape<'_> {
-    fn encode<W: Write>(
-        &self,
-        writer: &mut W,
-        _opts: &NetEncodeOpts,
-    ) -> Result<(), NetEncodeError> {
+    fn encode<W: Write>(&self, writer: &mut W, _opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
         let data = self.data;
         writer.write_all(data)?;
         Ok(())
@@ -649,17 +662,7 @@ impl NbtTapeElement<'_> {
         tape: &mut NbtTape,
         writer: &mut Vec<u8>,
         opts: &NBTSerializeOptions,
-    ) -> Result<(), NetEncodeError> {
-        match opts {
-            NBTSerializeOptions::None => {}
-            NBTSerializeOptions::WithHeader(name) => {
-                writer.write_all(&[self.nbt_id()])?;
-                name.serialize(writer, &NBTSerializeOptions::None);
-            }
-            NBTSerializeOptions::Network | NBTSerializeOptions::Flatten => {
-                writer.write_all(&[self.nbt_id()])?;
-            }
-        }
+    ) -> NetEncodeResult<()> {
 
         match self {
             NbtTapeElement::End => Ok(()),
