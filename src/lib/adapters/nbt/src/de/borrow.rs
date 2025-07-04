@@ -3,8 +3,7 @@
 use crate::de::converter::FromNbt;
 use crate::{NBTSerializable, NBTSerializeOptions};
 use ferrumc_general_purpose::simd::arrays;
-use ferrumc_net_codec::encode::errors::NetEncodeError;
-use ferrumc_net_codec::encode::{NetEncode, NetEncodeOpts};
+use ferrumc_net_codec::encode::{NetEncode, NetEncodeOpts, NetEncodeResult};
 use std::io::Write;
 use std::mem::size_of;
 use std::sync::Arc;
@@ -621,11 +620,7 @@ mod general {
 }
 
 impl NetEncode for NbtTape<'_> {
-    fn encode<W: Write>(
-        &self,
-        writer: &mut W,
-        _opts: &NetEncodeOpts,
-    ) -> Result<(), NetEncodeError> {
+    fn encode<W: Write>(&self, writer: &mut W, _opts: &NetEncodeOpts) -> NetEncodeResult<()> {
         let data = self.data;
         writer.write_all(data)?;
         Ok(())
@@ -635,7 +630,7 @@ impl NetEncode for NbtTape<'_> {
         &self,
         writer: &mut W,
         _opts: &NetEncodeOpts,
-    ) -> Result<(), NetEncodeError> {
+    ) -> NetEncodeResult<()> {
         use tokio::io::AsyncWriteExt;
         let data = self.data;
         writer.write_all(data).await?;
