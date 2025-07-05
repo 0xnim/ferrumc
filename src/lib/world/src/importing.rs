@@ -7,9 +7,8 @@ use ferrumc_anvil::load_anvil_file;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::thread;
 use tracing::{error, info};
 
 impl World {
@@ -77,84 +76,73 @@ impl World {
         info!("Starting chunk import...");
         let start = std::time::Instant::now();
 
-        let regions_dir = import_dir.join("region").read_dir()?;
-        let mut current_batch = Vec::with_capacity(batch_size);
+        let region_files: Vec<PathBuf> = import_dir
+            .join("region")
+            .read_dir()?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.is_file())
+            .collect();
 
-        let remaining_tasks = Arc::new(AtomicU32::new(0));
+        rayon::scope(|s| {
+            let (tx, rx) = std::sync::mpsc::channel();
 
-        for region_result in regions_dir {
-            let region_entry = region_result?;
-            if region_entry.path().is_dir() {
-                continue;
-            }
+            s.spawn(move |_| {
+                region_files
+                    .into_par_iter()
+                    .for_each_with(tx, |tx, region_path| {
+                        let anvil_file = match load_anvil_file(region_path.clone()) {
+                            Ok(file) => file,
+                            Err(e) => {
+                                error!(
+                                    "Failed to load region file {}: {}",
+                                    region_path.display(),
+                                    e
+                                );
+                                return;
+                            }
+                        };
 
-            let anvil_file = match load_anvil_file(region_entry.path()) {
-                Ok(file) => file,
-                Err(e) => {
-                    error!(
-                        "Failed to load region file {}: {}",
-                        region_entry.path().display(),
-                        e
-                    );
-                    continue;
-                }
-            };
-
-            for location in anvil_file.get_locations() {
-                let remaining_tasks_clone = remaining_tasks.clone();
-                if let Ok(Some(chunk_data)) = anvil_file.get_chunk_from_location(location) {
-                    if let Ok(vanilla_chunk) = VanillaChunk::from_bytes(&chunk_data) {
-                        current_batch.push(vanilla_chunk);
-
-                        if current_batch.len() >= batch_size {
-                            let batch = std::mem::replace(
-                                &mut current_batch,
-                                Vec::with_capacity(batch_size),
-                            );
-                            let progress_clone = Arc::clone(&progress);
-                            let self_clone = self.clone();
-
-                            let remaining_tasks_clone = remaining_tasks_clone.clone();
-
-                            thread::spawn(move || {
-                                remaining_tasks_clone.fetch_add(1, Ordering::Relaxed);
-                                if let Err(e) =
-                                    self_clone.process_chunk_batch(batch, progress_clone)
-                                {
-                                    error!("Batch processing error: {}", e);
+                        for location in anvil_file.get_locations() {
+                            if let Ok(Some(chunk_data)) =
+                                anvil_file.get_chunk_from_location(location)
+                            {
+                                if let Ok(vanilla_chunk) = VanillaChunk::from_bytes(&chunk_data) {
+                                    if tx.send(vanilla_chunk).is_err() {
+                                        break;
+                                    }
                                 }
-                            });
-
-                            progress.set_message(format!(
-                                "tasks: {}",
-                                remaining_tasks.clone().load(Ordering::Relaxed)
-                            ));
+                            }
                         }
-                    }
+                    });
+            });
+
+            let mut current_batch = Vec::with_capacity(batch_size);
+            for vanilla_chunk in rx {
+                current_batch.push(vanilla_chunk);
+                if current_batch.len() >= batch_size {
+                    let batch =
+                        std::mem::replace(&mut current_batch, Vec::with_capacity(batch_size));
+                    let progress_clone = Arc::clone(&progress);
+                    let self_clone = self.clone();
+                    s.spawn(move |_| {
+                        if let Err(e) = self_clone.process_chunk_batch(batch, progress_clone) {
+                            error!("Batch processing error: {}", e);
+                        }
+                    });
                 }
             }
-        }
 
-        if !current_batch.is_empty() {
-            let progress_clone = Arc::clone(&progress);
-            let self_clone = self.clone();
-            let remaining_tasks_clone = remaining_tasks.clone();
-
-            thread::spawn(move || {
-                remaining_tasks_clone.fetch_add(1, Ordering::Relaxed);
-                if let Err(e) = self_clone.process_chunk_batch(current_batch, progress_clone) {
-                    error!("Final batch processing error: {}", e);
-                }
-            });
-        }
-
-        while remaining_tasks.load(Ordering::Relaxed) > 0 {
-            progress.set_message(format!(
-                "tasks: {}",
-                remaining_tasks.clone().load(Ordering::Relaxed)
-            ));
-            thread::sleep(std::time::Duration::from_secs(1));
-        }
+            if !current_batch.is_empty() {
+                let progress_clone = Arc::clone(&progress);
+                let self_clone = self.clone();
+                s.spawn(move |_| {
+                    if let Err(e) = self_clone.process_chunk_batch(current_batch, progress_clone) {
+                        error!("Final batch processing error: {}", e);
+                    }
+                });
+            }
+        });
 
         self.sync()?;
 
