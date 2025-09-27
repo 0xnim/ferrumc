@@ -20,8 +20,10 @@ network_compression_threshold = 64
 # Verify decompressed packets. This is a good idea to catch any corruption, but it will slow down processing.
 verify_decompressed_packets = true
 
-# Chunk render distance. This is the distance in chunks that the server will load around the player.
+# Default chunk render distance. This is the distance in chunks that the server will load around the player.
 chunk_render_distance = 12
+# Maximum allowed chunk render distance. Client requests above this will be capped to this value.
+max_chunk_render_distance = 32
 
 # Database configuration
 [database]

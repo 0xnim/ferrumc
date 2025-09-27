@@ -129,10 +129,13 @@ pub(super) async fn login(
         &NetDecodeOpts::None,
     )?;
 
+    let effective_render_distance = get_global_config().get_effective_render_distance(client_info.view_distance);
+    
     trace!(
-        "Client information: {{ locale: {}, view_distance: {}, chat_mode: {}, chat_colors: {}, displayed_skin_parts: {} }}",
+        "Client information: {{ locale: {}, view_distance: {} (effective: {}), chat_mode: {}, chat_colors: {}, displayed_skin_parts: {} }}",
         client_info.locale,
         client_info.view_distance,
+        effective_render_distance,
         client_info.chat_mode,
         client_info.chat_colors,
         client_info.displayed_skin_parts
@@ -195,7 +198,7 @@ pub(super) async fn login(
     // =============================================================================================
     // 11 Send login_play packet to switch to Play state
     let login_play =
-        crate::packets::outgoing::login_play::LoginPlayPacket::new(player_identity.short_uuid);
+        crate::packets::outgoing::login_play::LoginPlayPacket::with_render_distance(player_identity.short_uuid, effective_render_distance);
     conn_write.send_packet(login_play)?;
 
     // =============================================================================================
@@ -263,7 +266,7 @@ pub(super) async fn login(
 
     // =============================================================================================
     // 17 Load and send surrounding chunks within render distance
-    let radius = get_global_config().chunk_render_distance as i32;
+    let radius = effective_render_distance as i32;
 
     let mut batch = state.thread_pool.batch();
 
@@ -272,7 +275,13 @@ pub(super) async fn login(
             batch.execute({
                 let state = state.clone();
                 move || -> Result<Vec<u8>, NetError> {
-                    let chunk = state.world.load_chunk(x, z, "overworld")?;
+                    let chunk = if state.world.chunk_exists(x, z, "overworld").unwrap_or(false) {
+                        state.world.load_chunk(x, z, "overworld")?
+                    } else {
+                        // Generate chunk if it doesn't exist
+                        std::sync::Arc::new(state.terrain_generator.generate_chunk(x, z)
+                            .map_err(|err| NetError::Misc(err.to_string()))?)
+                    };
                     let chunk_data =
                         crate::packets::outgoing::chunk_and_light_data::ChunkAndLightData::from_chunk(
                             &chunk,
@@ -316,6 +325,7 @@ pub(super) async fn login(
         LoginResult {
             player_identity: Some(player_identity),
             compression: compressed,
+            effective_render_distance,
         },
     ))
 }

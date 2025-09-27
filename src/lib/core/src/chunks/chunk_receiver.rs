@@ -6,6 +6,11 @@ use typename::TypeName;
 pub const VIEW_DISTANCE: i32 = 8;
 
 #[derive(TypeName, Component)]
+pub struct PlayerRenderDistance {
+    pub distance: u32,
+}
+
+#[derive(TypeName, Component)]
 pub struct ChunkReceiver {
     pub needs_reload: HashSet<(i32, i32, String)>,
     pub seen: HashSet<(i32, i32, String)>,

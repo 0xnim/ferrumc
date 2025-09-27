@@ -35,8 +35,9 @@ pub fn set_global_config(config: ServerConfig) {
 /// - `world`: The name of the world that the server will load.
 /// - `network_compression_threshold`: The threshold at which the server will compress network packets.
 /// - `whitelist`: Whether the server whitelist is enabled or not.
-/// - `chunk_render_distance`: The render distance of the chunks. This is the number of chunks that will be
+/// - `chunk_render_distance`: The default render distance of the chunks. This is the number of chunks that will be
 ///   loaded around the player.
+/// - `max_chunk_render_distance`: The maximum allowed render distance. Client requests above this will be capped.
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct ServerConfig {
     pub host: String,
@@ -50,6 +51,7 @@ pub struct ServerConfig {
     pub verify_decompressed_packets: bool,
     pub whitelist: bool,
     pub chunk_render_distance: u32,
+    pub max_chunk_render_distance: u32,
 }
 
 /// The database configuration section from [ServerConfig].
@@ -70,6 +72,18 @@ pub struct DatabaseConfig {
     pub map_size: u64,
     pub cache_ttl: u64,
     pub cache_capacity: u64,
+}
+
+impl ServerConfig {
+    /// Calculate the effective render distance based on client preference and server limits.
+    /// Returns the smaller of client_distance and max_chunk_render_distance, or the default if client_distance is invalid.
+    pub fn get_effective_render_distance(&self, client_distance: i8) -> u32 {
+        if client_distance > 0 {
+            std::cmp::min(client_distance as u32, self.max_chunk_render_distance)
+        } else {
+            self.chunk_render_distance
+        }
+    }
 }
 
 fn create_config() -> ServerConfig {

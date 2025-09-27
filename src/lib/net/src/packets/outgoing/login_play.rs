@@ -32,14 +32,18 @@ pub struct LoginPlayPacket<'a> {
 
 impl LoginPlayPacket<'_> {
     pub fn new(conn_id: i32) -> Self {
+        Self::with_render_distance(conn_id, get_global_config().chunk_render_distance)
+    }
+
+    pub fn with_render_distance(conn_id: i32, render_distance: u32) -> Self {
         Self {
             entity_id: conn_id,
             is_hardcore: false,
             dimension_length: VarInt::from(1),
             dimension_names: &["minecraft:overworld"],
             max_players: VarInt::from(get_global_config().max_players as i32),
-            view_distance: VarInt::from(get_global_config().chunk_render_distance as i32),
-            simulation_distance: VarInt::from(get_global_config().chunk_render_distance as i32),
+            view_distance: VarInt::from(render_distance as i32),
+            simulation_distance: VarInt::from(render_distance as i32),
             reduced_debug_info: false,
             enable_respawn_screen: true,
             do_limited_crafting: false,

@@ -143,6 +143,7 @@ pub struct NewConnection {
     pub stream: StreamWriter,
     pub player_identity: PlayerIdentity,
     pub entity_return: oneshot::Sender<Entity>,
+    pub effective_render_distance: u32,
 }
 
 /// Handles a new incoming client connection.
@@ -236,6 +237,7 @@ pub async fn handle_connection(
             stream,
             player_identity: login_result.player_identity.unwrap_or_default(),
             entity_return,
+            effective_render_distance: login_result.effective_render_distance,
         })
         .map_err(|_| NetError::Misc("Failed to register new connection".to_string()))?;
 
