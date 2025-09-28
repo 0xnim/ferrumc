@@ -35,8 +35,7 @@ pub fn set_global_config(config: ServerConfig) {
 /// - `world`: The name of the world that the server will load.
 /// - `network_compression_threshold`: The threshold at which the server will compress network packets.
 /// - `whitelist`: Whether the server whitelist is enabled or not.
-/// - `chunk_render_distance`: The default render distance of the chunks. This is the number of chunks that will be
-///   loaded around the player.
+/// - `min_chunk_render_distance`: The minimum render distance. Clients will always receive at least this many chunks.
 /// - `max_chunk_render_distance`: The maximum allowed render distance. Client requests above this will be capped.
 /// - `simulation_distance`: The simulation distance for the server. This controls how far from players chunks are actively simulated.
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -51,7 +50,7 @@ pub struct ServerConfig {
     pub network_compression_threshold: i32, // Can be negative
     pub verify_decompressed_packets: bool,
     pub whitelist: bool,
-    pub chunk_render_distance: u32,
+    pub min_chunk_render_distance: u32,
     pub max_chunk_render_distance: u32,
     pub simulation_distance: u32,
 }
@@ -78,20 +77,28 @@ pub struct DatabaseConfig {
 
 impl ServerConfig {
     /// Calculate the effective render distance based on client preference and server limits.
-    /// Returns the smaller of client_distance and max_chunk_render_distance, or the default if client_distance is invalid.
+    /// Ensures the distance is always between min_chunk_render_distance and max_chunk_render_distance.
+    /// Defaults to minimum if client_distance is invalid.
     pub fn get_effective_render_distance(&self, client_distance: i8) -> u32 {
-        if client_distance > 0 {
-            std::cmp::min(client_distance as u32, self.max_chunk_render_distance)
+        let base_distance = if client_distance > 0 {
+            client_distance as u32
         } else {
-            self.chunk_render_distance
-        }
+            // Default to minimum when client doesn't specify a valid distance
+            self.min_chunk_render_distance
+        };
+        
+        // Always clamp between min and max
+        std::cmp::max(
+            self.min_chunk_render_distance,
+            std::cmp::min(base_distance, self.max_chunk_render_distance)
+        )
     }
 }
 
 fn create_config() -> ServerConfig {
     let config_location = get_root_path().join("configs");
     let main_config_file = config_location.join("config.toml");
-    match figment::Figment::new()
+    let config: ServerConfig = match figment::Figment::new()
         // Load the default configuration
         .merge(figment::providers::Toml::string(DEFAULT_CONFIG))
         // Then override it with the main config file
@@ -103,5 +110,16 @@ fn create_config() -> ServerConfig {
             eprintln!("Failed to load server configuration: {e}");
             std::process::exit(1);
         }
+    };
+    
+    // Validate render distance configuration
+    if config.min_chunk_render_distance > config.max_chunk_render_distance {
+        eprintln!(
+            "Invalid render distance configuration: min_chunk_render_distance ({}) cannot be greater than max_chunk_render_distance ({})",
+            config.min_chunk_render_distance, config.max_chunk_render_distance
+        );
+        std::process::exit(1);
     }
+    
+    config
 }

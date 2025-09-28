@@ -97,7 +97,7 @@ pub(super) async fn status(
         LoginResult {
             player_identity: None,
             compression: false,
-            effective_render_distance: get_global_config().chunk_render_distance,
+            effective_render_distance: get_global_config().min_chunk_render_distance,
         },
     ))
 }

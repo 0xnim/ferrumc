@@ -32,7 +32,7 @@ pub struct LoginPlayPacket<'a> {
 
 impl LoginPlayPacket<'_> {
     pub fn new(conn_id: i32) -> Self {
-        Self::with_render_distance(conn_id, get_global_config().chunk_render_distance)
+        Self::with_render_distance(conn_id, get_global_config().min_chunk_render_distance)
     }
 
     pub fn with_render_distance(conn_id: i32, render_distance: u32) -> Self {

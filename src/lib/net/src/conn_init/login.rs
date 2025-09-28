@@ -132,10 +132,12 @@ pub(super) async fn login(
     let effective_render_distance = get_global_config().get_effective_render_distance(client_info.view_distance);
     
     trace!(
-        "Client information: {{ locale: {}, view_distance: {} (effective: {}), chat_mode: {}, chat_colors: {}, displayed_skin_parts: {} }}",
+        "Client information: {{ locale: {}, view_distance: {} -> effective: {} (clamped between {} and {}), chat_mode: {}, chat_colors: {}, displayed_skin_parts: {} }}",
         client_info.locale,
         client_info.view_distance,
         effective_render_distance,
+        get_global_config().min_chunk_render_distance,
+        get_global_config().max_chunk_render_distance,
         client_info.chat_mode,
         client_info.chat_colors,
         client_info.displayed_skin_parts

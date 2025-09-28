@@ -8,18 +8,19 @@ use ferrumc_net::ClientInformationPlayReceiver;
 use ferrumc_state::GlobalStateResource;
 use std::collections::HashSet;
 use tracing::{debug, error, trace};
+use crate::systems::send_chunks::send_chunks;
 
 pub fn handle_client_information(
     events: Res<ClientInformationPlayReceiver>,
     mut query: Query<(&mut StreamWriter, &mut PlayerRenderDistance, &Position)>,
-    _state: Res<GlobalStateResource>,
+    state: Res<GlobalStateResource>,
 ) {
     let config = get_global_config();
     
     for (packet, entity) in events.0.try_iter() {
         let new_effective_distance = config.get_effective_render_distance(packet.view_distance);
         
-        let Ok((conn, mut current_render_distance, position)) = query.get_mut(entity) else {
+        let Ok((mut conn, mut current_render_distance, position)) = query.get_mut(entity) else {
             error!("Failed to get entity components for entity {:?}", entity);
             continue;
         };
@@ -27,11 +28,12 @@ pub fn handle_client_information(
         let old_distance = current_render_distance.distance;
 
         trace!(
-            "Client information update: view_distance {} -> {} (effective: {} -> {})",
-            packet.view_distance,
+            "Client information update: view_distance {} -> effective: {} -> {} (clamped between {} and {})",
             packet.view_distance,
             old_distance,
-            new_effective_distance
+            new_effective_distance,
+            config.min_chunk_render_distance,
+            config.max_chunk_render_distance
         );
 
         // If the render distance hasn't changed, no need to update chunks
@@ -53,17 +55,28 @@ pub fn handle_client_information(
 
         // Calculate chunk differences and send/unload as needed
         if new_effective_distance > old_distance {
-            // Render distance increased - calculate and log the new chunks needed
-            let additional_chunks = calculate_additional_chunks(
+            // Render distance increased - calculate and send the new chunks immediately
+            let additional_chunks = get_additional_chunk_coords(
                 current_chunk,
                 old_distance as i32,
                 new_effective_distance as i32,
             );
             debug!(
-                "Render distance increased from {} to {} - {} additional chunks needed",
-                old_distance, new_effective_distance, additional_chunks
+                "Render distance increased from {} to {} - sending {} additional chunks immediately",
+                old_distance, new_effective_distance, additional_chunks.len()
             );
-            // Note: New chunks will be sent on the next chunk boundary event when the player moves
+            
+            // Send the additional chunks immediately
+            if !additional_chunks.is_empty() {
+                if let Err(e) = send_chunks(
+                    state.0.clone(),
+                    additional_chunks,
+                    &mut conn,
+                    current_chunk,
+                ) {
+                    error!("Failed to send additional chunks: {}", e);
+                }
+            }
         } else {
             // Render distance decreased - client should automatically unload the extra chunks
             debug!(
@@ -74,13 +87,13 @@ pub fn handle_client_information(
     }
 }
 
-fn calculate_additional_chunks(
+fn get_additional_chunk_coords(
     center_chunk: (i32, i32),
     old_radius: i32,
     new_radius: i32,
-) -> usize {
+) -> Vec<(i32, i32, String)> {
     let mut old_chunk_seen = HashSet::new();
-    let mut new_chunk_seen = HashSet::new();
+    let mut additional_chunks = Vec::new();
 
     // Calculate old visible chunks
     for x in center_chunk.0 - old_radius..=center_chunk.0 + old_radius {
@@ -89,16 +102,14 @@ fn calculate_additional_chunks(
         }
     }
 
-    // Calculate new visible chunks
+    // Find new chunks that need to be sent (in new but not in old)
     for x in center_chunk.0 - new_radius..=center_chunk.0 + new_radius {
         for z in center_chunk.1 - new_radius..=center_chunk.1 + new_radius {
-            new_chunk_seen.insert((x, z));
+            if !old_chunk_seen.contains(&(x, z)) {
+                additional_chunks.push((x, z, "overworld".to_string()));
+            }
         }
     }
 
-    // Count chunks that need to be sent (in new but not in old)
-    new_chunk_seen
-        .iter()
-        .filter(|chunk| !old_chunk_seen.contains(chunk))
-        .count()
+    additional_chunks
 }
