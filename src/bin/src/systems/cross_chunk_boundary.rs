@@ -23,14 +23,14 @@ pub fn cross_chunk_boundary(
         let radius = render_distance.distance as i32;
 
         let mut old_chunk_seen = HashSet::new();
-        for x in event.old_chunk.0 - radius..event.old_chunk.0 + radius {
-            for z in event.old_chunk.1 - radius..event.old_chunk.1 + radius {
+        for x in event.old_chunk.0 - radius..=event.old_chunk.0 + radius {
+            for z in event.old_chunk.1 - radius..=event.old_chunk.1 + radius {
                 old_chunk_seen.insert((x, z));
             }
         }
         let mut new_chunk_seen = HashSet::new();
-        for x in event.new_chunk.0 - radius..event.new_chunk.0 + radius {
-            for z in event.new_chunk.1 - radius..event.new_chunk.1 + radius {
+        for x in event.new_chunk.0 - radius..=event.new_chunk.0 + radius {
+            for z in event.new_chunk.1 - radius..=event.new_chunk.1 + radius {
                 new_chunk_seen.insert((x, z));
             }
         }
