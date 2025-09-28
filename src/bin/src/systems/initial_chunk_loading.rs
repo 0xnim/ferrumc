@@ -55,10 +55,14 @@ pub fn process_initial_chunk_loading(
             
             if let Err(e) = send_chunks(state.0.clone(), needed_chunks, &mut conn, current_chunk) {
                 error!("Failed to send additional chunks for player: {}", e);
+                // Keep the marker so the system can retry later
+            } else {
+                // Remove the marker only on successful chunk sending
+                commands.entity(entity).remove::<NeedsInitialChunks>();
             }
+        } else {
+            // Remove the marker when no additional chunks are needed
+            commands.entity(entity).remove::<NeedsInitialChunks>();
         }
-
-        // Remove the marker component as we've processed this player
-        commands.entity(entity).remove::<NeedsInitialChunks>();
     }
 }
