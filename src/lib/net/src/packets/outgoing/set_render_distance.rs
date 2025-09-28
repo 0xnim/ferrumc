@@ -7,7 +7,7 @@ pub struct SetRenderDistance {
     pub distance: VarInt,
 }
 
-const DEFAULT_RENDER_DISTANCE: u8 = 5;
+const DEFAULT_RENDER_DISTANCE: u32 = 5;
 
 impl Default for SetRenderDistance {
     fn default() -> Self {
@@ -16,7 +16,7 @@ impl Default for SetRenderDistance {
 }
 
 impl SetRenderDistance {
-    pub fn new(distance: u8) -> Self {
+    pub fn new(distance: u32) -> Self {
         Self {
             distance: VarInt::new(distance as i32),
         }
