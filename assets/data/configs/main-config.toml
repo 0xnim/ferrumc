@@ -24,6 +24,8 @@ verify_decompressed_packets = true
 chunk_render_distance = 12
 # Maximum allowed chunk render distance. Client requests above this will be capped to this value.
 max_chunk_render_distance = 32
+# Simulation distance. This controls how far from players chunks are actively simulated.
+simulation_distance = 12
 
 # Database configuration
 [database]

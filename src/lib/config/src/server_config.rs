@@ -38,6 +38,7 @@ pub fn set_global_config(config: ServerConfig) {
 /// - `chunk_render_distance`: The default render distance of the chunks. This is the number of chunks that will be
 ///   loaded around the player.
 /// - `max_chunk_render_distance`: The maximum allowed render distance. Client requests above this will be capped.
+/// - `simulation_distance`: The simulation distance for the server. This controls how far from players chunks are actively simulated.
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct ServerConfig {
     pub host: String,
@@ -52,6 +53,7 @@ pub struct ServerConfig {
     pub whitelist: bool,
     pub chunk_render_distance: u32,
     pub max_chunk_render_distance: u32,
+    pub simulation_distance: u32,
 }
 
 /// The database configuration section from [ServerConfig].

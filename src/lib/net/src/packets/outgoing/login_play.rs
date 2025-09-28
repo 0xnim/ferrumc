@@ -43,7 +43,7 @@ impl LoginPlayPacket<'_> {
             dimension_names: &["minecraft:overworld"],
             max_players: VarInt::from(get_global_config().max_players as i32),
             view_distance: VarInt::from(render_distance as i32),
-            simulation_distance: VarInt::from(render_distance as i32),
+            simulation_distance: VarInt::from(get_global_config().simulation_distance as i32),
             reduced_debug_info: false,
             enable_respawn_screen: true,
             do_limited_crafting: false,
