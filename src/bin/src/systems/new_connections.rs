@@ -1,6 +1,7 @@
 use bevy_ecs::prelude::{Commands, Res, Resource};
 use crossbeam_channel::Receiver;
 use ferrumc_core::chunks::chunk_receiver::{ChunkReceiver, PlayerRenderDistance};
+use ferrumc_core::chunks::initial_chunks_marker::NeedsInitialChunks;
 use ferrumc_core::conn::keepalive::KeepAliveTracker;
 use ferrumc_core::transform::grounded::OnGround;
 use ferrumc_core::transform::position::Position;
@@ -32,6 +33,7 @@ pub fn accept_new_connections(
             PlayerRenderDistance {
                 distance: new_connection.effective_render_distance,
             },
+            NeedsInitialChunks::new(new_connection.effective_render_distance),
             Rotation::default(),
             OnGround::default(),
             new_connection.player_identity.clone(),

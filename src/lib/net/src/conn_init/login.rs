@@ -265,8 +265,10 @@ pub(super) async fn login(
     conn_write.send_packet(center_chunk)?;
 
     // =============================================================================================
-    // 17 Load and send surrounding chunks within render distance
-    let radius = effective_render_distance as i32;
+    // 17 Load and send initial chunks (small radius to prevent long loading screens)
+    // Additional chunks will be sent as the player moves via cross-chunk boundary events
+    const INITIAL_CHUNK_RADIUS: i32 = 2; // Send only 5x5 chunks initially
+    let radius = INITIAL_CHUNK_RADIUS;
 
     let mut batch = state.thread_pool.batch();
 
