@@ -1,12 +1,13 @@
-use crate::systems::send_chunks::send_chunks;
-use bevy_ecs::prelude::{EventReader, Query, Res};
+use crate::systems::chunk_loading_rings::add_boundary_chunks_to_player;
+use bevy_ecs::prelude::{Commands, EventReader, Query, Res};
 use ferrumc_core::chunks::chunk_receiver::PlayerRenderDistance;
+use ferrumc_core::chunks::chunk_loading_rings::ChunkLoadPriority;
 use ferrumc_core::chunks::cross_chunk_boundary_event::CrossChunkBoundaryEvent;
 use ferrumc_net::connection::StreamWriter;
 use ferrumc_state::GlobalStateResource;
-use std::collections::HashSet;
 
 pub fn cross_chunk_boundary(
+    mut commands: Commands,
     mut events: EventReader<CrossChunkBoundaryEvent>,
     mut query: Query<(&mut StreamWriter, &PlayerRenderDistance)>,
     state: Res<GlobalStateResource>,
@@ -19,31 +20,16 @@ pub fn cross_chunk_boundary(
             continue; // Skip if the player is not connected
         }
         
-        let (mut conn, render_distance) = query.get_mut(event.player).expect("Player does not exist");
-        let radius = render_distance.distance as i32;
-
-        let mut old_chunk_seen = HashSet::new();
-        for x in event.old_chunk.0 - radius..=event.old_chunk.0 + radius {
-            for z in event.old_chunk.1 - radius..=event.old_chunk.1 + radius {
-                old_chunk_seen.insert((x, z));
-            }
-        }
-        let mut new_chunk_seen = HashSet::new();
-        for x in event.new_chunk.0 - radius..=event.new_chunk.0 + radius {
-            for z in event.new_chunk.1 - radius..=event.new_chunk.1 + radius {
-                new_chunk_seen.insert((x, z));
-            }
-        }
-        let needed_chunks: Vec<_> = new_chunk_seen
-            .iter()
-            .filter(|chunk| !old_chunk_seen.contains(chunk))
-            .map(|chunk| {
-                let (x, z) = *chunk;
-                (x, z, "overworld".to_string())
-            })
-            .collect();
-        let center_chunk = (event.new_chunk.0, event.new_chunk.1);
-        send_chunks(state.0.clone(), needed_chunks, &mut conn, center_chunk)
-            .expect("Failed to send chunks")
+        let (_conn, render_distance) = query.get_mut(event.player).expect("Player does not exist");
+        
+        // Use ring system for gradual boundary chunk loading
+        add_boundary_chunks_to_player(
+            &mut commands,
+            event.player,
+            event.old_chunk,
+            event.new_chunk,
+            render_distance.distance,
+            ChunkLoadPriority::High, // Movement chunks are high priority
+        );
     }
 }
