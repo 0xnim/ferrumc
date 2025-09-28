@@ -3,8 +3,6 @@ use std::collections::HashSet;
 use std::sync::atomic::AtomicBool;
 use typename::TypeName;
 
-pub const VIEW_DISTANCE: i32 = 8;
-
 #[derive(TypeName, Component)]
 pub struct PlayerRenderDistance {
     pub distance: u32,
