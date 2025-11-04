@@ -1,0 +1,42 @@
+# FerrumC Plugin Configuration
+#
+# This file configures which plugins are enabled and their settings.
+# Plugins are compiled into the server binary and configured here.
+
+# Example plugin configuration:
+#
+# [my_plugin]
+# enabled = true
+# some_setting = "value"
+# interval_seconds = 300
+
+# Core plugins (required for basic server functionality)
+# These will be added as they are implemented
+
+# Optional plugins (can be disabled)
+
+# Example configurations for future plugins:
+
+# [entity_tracking]
+# tracking_range = 128
+# update_interval_ms = 50
+
+# [combat]
+# pvp_enabled = true
+# damage_multiplier = 1.0
+# knockback_enabled = true
+
+# [autosave]
+# interval_seconds = 300
+# broadcast_message = true
+
+# [discord]
+# enabled = false
+# webhook_url = ""
+# broadcast_chat = true
+# broadcast_joins = true
+
+# [metrics]
+# enabled = false
+# port = 9090
+# path = "/metrics"

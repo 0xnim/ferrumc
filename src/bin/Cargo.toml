@@ -31,8 +31,11 @@ ferrumc-default-commands = { workspace = true }
 ferrumc-world-gen = { workspace = true }
 ferrumc-threadpool = { workspace = true }
 ferrumc-inventories = { workspace = true }
+ferrumc-plugin-api = { workspace = true }
+ferrumc-plugin-hello = { path = "../lib/plugins/examples/hello" }
 once_cell = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
 
 tracing = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }

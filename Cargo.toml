@@ -26,6 +26,7 @@ members = [
     "src/lib/net",
     "src/lib/net/crates/codec",
     "src/lib/net/crates/encryption",
+    "src/lib/plugin-api",
     "src/lib/plugins",
     "src/lib/storage",
     "src/lib/text",
@@ -39,6 +40,7 @@ members = [
     "src/lib/inventories",
     "src/lib/registry",
     "src/lib/scheduler",
+    "src/lib/plugins/examples/hello",
 ]
 
 #================== Lints ==================#
@@ -99,6 +101,7 @@ ferrumc-logging = { path = "src/lib/utils/logging" }
 ferrumc-macros = { path = "src/lib/derive_macros" }
 ferrumc-nbt = { path = "src/lib/adapters/nbt" }
 ferrumc-net = { path = "src/lib/net" }
+ferrumc-plugin-api = { path = "src/lib/plugin-api" }
 ferrumc-net-codec = { path = "src/lib/net/crates/codec" }
 ferrumc-net-encryption = { path = "src/lib/net/crates/encryption" }
 ferrumc-plugins = { path = "src/lib/plugins" }

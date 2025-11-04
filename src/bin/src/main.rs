@@ -20,6 +20,7 @@ mod chunk_sending;
 mod cli;
 mod game_loop;
 mod packet_handlers;
+mod plugin_loader;
 mod register_events;
 mod register_resources;
 mod systems;

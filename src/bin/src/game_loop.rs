@@ -48,6 +48,20 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
 
     let mut timed = build_timed_scheduler();
 
+    // Initialize plugins
+    info!("Initializing plugin system...");
+    let plugin_registry = crate::plugin_loader::create_plugin_registry()
+        .map_err(|e| BinaryError::Custom(format!("Failed to create plugin registry: {}", e)))?;
+
+    // Build all plugins
+    plugin_registry
+        .build_all(
+            &mut ecs_world,
+            global_state.clone(),
+            &mut timed.schedules[0].schedule,
+        )
+        .map_err(|e| BinaryError::Custom(format!("Failed to initialize plugins: {}", e)))?;
+
     // Shutdown systems
     register_shutdown_systems(&mut shutdown_schedule);
 

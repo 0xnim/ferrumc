@@ -1,0 +1,78 @@
+//! Hello World Plugin
+//!
+//! A simple example plugin that demonstrates the FerrumC plugin API.
+//!
+//! This plugin:
+//! - Adds a `/hello` command
+//! - Runs a periodic system that logs a message every 10 seconds
+//! - Shows how to use plugin configuration
+
+use ferrumc_plugin_api::*;
+use std::time::Duration;
+use tracing::info;
+
+/// Hello World plugin
+#[derive(Default)]
+pub struct HelloPlugin;
+
+impl Plugin for HelloPlugin {
+    fn name(&self) -> &'static str {
+        "hello"
+    }
+
+    fn version(&self) -> &'static str {
+        "1.0.0"
+    }
+
+    fn author(&self) -> &'static str {
+        "FerrumC Team"
+    }
+
+    fn description(&self) -> &'static str {
+        "A simple hello world plugin demonstrating the plugin API"
+    }
+
+    fn build(&self, ctx: &mut PluginContext) {
+        // Get configuration (with defaults)
+        let message = ctx
+            .get_config::<String>("message")
+            .unwrap_or_else(|| "Hello from plugin!".to_string());
+        let interval_secs = ctx.get_config::<u64>("interval_seconds").unwrap_or(10);
+
+        info!("Hello plugin initialized with message: '{}'", message);
+        info!("Will log every {} seconds", interval_secs);
+
+        // Register a periodic system
+        ctx.add_timed_system(
+            "hello_periodic",
+            Duration::from_secs(interval_secs),
+            move || {
+                info!("🎉 {}", message);
+            },
+        );
+
+        // TODO: Register /hello command when command registration is fixed
+        // ctx.register_command(hello_command);
+
+        info!("Hello plugin loaded successfully!");
+    }
+}
+
+// Example command (not yet functional due to command system integration)
+// #[command]
+// fn hello_command(sender: Sender) {
+//     sender.send_system_message("Hello from the hello plugin!");
+// }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_plugin_metadata() {
+        let plugin = HelloPlugin;
+        assert_eq!(plugin.name(), "hello");
+        assert_eq!(plugin.version(), "1.0.0");
+        assert!(!plugin.description().is_empty());
+    }
+}
