@@ -77,20 +77,17 @@ impl<'a> PluginContext<'a> {
     pub fn add_timed_system<Marker>(
         &mut self,
         name: impl Into<String>,
-        _period: Duration,
-        _system: impl IntoSystem<(), (), Marker> + 'static,
-    ) {
-        // TODO: This needs proper implementation
-        // The scheduler's TimedSchedule::new takes a closure that builds the schedule
-        // We can't easily pass the system through this API
-        // For now, log a warning
-        tracing::warn!(
-            "add_timed_system('{}') called but not yet fully implemented",
-            name.into()
-        );
-
-        // Proper implementation will require refactoring the scheduler
-        // to allow adding systems after TimedSchedule creation
+        period: Duration,
+        system: impl IntoSystem<(), (), Marker> + Send + 'static,
+    ) where
+        Marker: Send + 'static,
+    {
+        let mut system_option = Some(system);
+        ferrumc_scheduler::register_schedule(name, period, move |schedule| {
+            if let Some(sys) = system_option.take() {
+                schedule.add_systems(sys);
+            }
+        });
     }
 
     /// Register an event type.

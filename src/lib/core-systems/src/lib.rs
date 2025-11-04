@@ -15,3 +15,5 @@
 //! Game logic belongs in plugins!
 
 pub mod animations;
+pub mod blocks;
+pub mod chat;

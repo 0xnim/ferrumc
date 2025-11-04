@@ -1,0 +1,13 @@
+[package]
+name = "ferrumc-block-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+ferrumc-core = { workspace = true }
+ferrumc-net-codec = { workspace = true }
+ferrumc-world = { workspace = true }
+
+[lints]
+workspace = true

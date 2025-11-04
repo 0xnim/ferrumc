@@ -1,0 +1,12 @@
+[package]
+name = "ferrumc-chat-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+ferrumc-core = { workspace = true }
+ferrumc-text = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,26 @@
+[package]
+name = "ferrumc-plugin-blocks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+tracing = { workspace = true }
+serde_json = { workspace = true }
+once_cell = { workspace = true }
+
+# Plugin framework
+ferrumc-plugin-api = { workspace = true }
+
+# Domain APIs
+ferrumc-block-api = { workspace = true }
+
+# Core types
+ferrumc-core = { workspace = true }
+ferrumc-net-codec = { workspace = true }
+ferrumc-world = { workspace = true }
+ferrumc-state = { workspace = true }
+ferrumc-inventories = { workspace = true }
+
+[lints]
+workspace = true

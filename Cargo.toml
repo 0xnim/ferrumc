@@ -42,8 +42,13 @@ members = [
     "src/lib/scheduler",
     "src/lib/plugins/examples/hello",
     "src/lib/apis/animation-api",
+    "src/lib/apis/block-api",
+    "src/lib/apis/chat-api",
     "src/lib/core-systems",
     "src/lib/plugins/core/animations",
+    "src/lib/plugins/core/blocks",
+    "src/lib/plugins/core/chat",
+    "src/lib/plugins/core/default-commands",
 ]
 
 #================== Lints ==================#
@@ -122,6 +127,8 @@ ferrumc-inventories = { path = "src/lib/inventories" }
 
 # Domain APIs
 ferrumc-animation-api = { path = "src/lib/apis/animation-api" }
+ferrumc-block-api = { path = "src/lib/apis/block-api" }
+ferrumc-chat-api = { path = "src/lib/apis/chat-api" }
 
 # Core Systems (I/O layer)
 ferrumc-core-systems = { path = "src/lib/core-systems" }

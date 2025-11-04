@@ -205,6 +205,9 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     // Register plugins
     // Core gameplay plugins
     registry.register::<ferrumc_plugin_animations::AnimationsPlugin>();
+    registry.register::<ferrumc_plugin_blocks::BlocksPlugin>();
+    registry.register::<ferrumc_plugin_chat::ChatPlugin>();
+    registry.register::<ferrumc_plugin_default_commands::DefaultCommandsPlugin>();
     
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();

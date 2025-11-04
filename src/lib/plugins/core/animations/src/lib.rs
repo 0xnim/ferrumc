@@ -53,13 +53,13 @@ impl Plugin for AnimationsPlugin {
     fn build(&self, ctx: &mut PluginContext<'_>) {
         info!("Loading animations plugin");
 
-        // Register events from animation API using helper macro
+        // Register events from animation API
         register_events!(
             ctx,
             PlayerSwingArmEvent,
             PlayerCommandEvent,
             PlayAnimationRequest,
-            SetEntityPoseRequest,
+            SetEntityPoseRequest
         );
 
         // Register our gameplay logic systems

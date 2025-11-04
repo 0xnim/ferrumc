@@ -1,0 +1,21 @@
+[package]
+name = "ferrumc-plugin-chat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+tracing = { workspace = true }
+
+# Plugin framework
+ferrumc-plugin-api = { workspace = true }
+
+# Domain APIs
+ferrumc-chat-api = { workspace = true }
+
+# Core types
+ferrumc-core = { workspace = true }
+ferrumc-text = { workspace = true }
+
+[lints]
+workspace = true

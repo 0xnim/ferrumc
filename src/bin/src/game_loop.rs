@@ -46,14 +46,15 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     register_events(&mut ecs_world);
     register_resources(&mut ecs_world, new_conn_recv, global_state_res);
 
-    let mut timed = build_timed_scheduler();
-
-    // Initialize plugins
+    // Initialize plugins BEFORE building schedules so plugin schedules get registered
     info!("Initializing plugin system...");
     let plugin_registry = crate::plugin_loader::create_plugin_registry()
         .map_err(|e| BinaryError::Custom(format!("Failed to create plugin registry: {}", e)))?;
 
-    // Build all plugins
+    // Build timed scheduler (without plugin schedules yet - they're registered during plugin build)
+    let mut timed = build_timed_scheduler_base();
+
+    // Build all plugins (they will register their timed schedules)
     plugin_registry
         .build_all(
             &mut ecs_world,
@@ -61,6 +62,11 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
             &mut timed.schedules[0].schedule,
         )
         .map_err(|e| BinaryError::Custom(format!("Failed to initialize plugins: {}", e)))?;
+
+    // Now drain and register plugin schedules
+    for pending in drain_registered_schedules() {
+        timed.register(pending.into_timed());
+    }
 
     // Shutdown systems
     register_shutdown_systems(&mut shutdown_schedule);
@@ -158,7 +164,7 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     Ok(())
 }
 
-fn build_timed_scheduler() -> Scheduler {
+fn build_timed_scheduler_base() -> Scheduler {
     let mut timed = Scheduler::new();
 
     // Tick schedule
@@ -168,10 +174,16 @@ fn build_timed_scheduler() -> Scheduler {
         // Core I/O layer: packet → event converters
         s.add_systems(ferrumc_core_systems::animations::handle_swing_arm_packets);
         s.add_systems(ferrumc_core_systems::animations::handle_player_command_packets);
+        s.add_systems(ferrumc_core_systems::blocks::handle_place_block_packets);
+        s.add_systems(ferrumc_core_systems::blocks::handle_player_action_packets);
+        s.add_systems(ferrumc_core_systems::chat::handle_chat_packets);
         
         // Core I/O layer: event → packet broadcasters
         s.add_systems(ferrumc_core_systems::animations::broadcast_animations);
         s.add_systems(ferrumc_core_systems::animations::broadcast_pose_changes);
+        s.add_systems(ferrumc_core_systems::blocks::broadcast_block_updates);
+        s.add_systems(ferrumc_core_systems::blocks::send_block_change_acks);
+        s.add_systems(ferrumc_core_systems::chat::broadcast_chat_messages);
         
         register_packet_handlers(s);
         register_player_systems(s);
@@ -216,11 +228,6 @@ fn build_timed_scheduler() -> Scheduler {
             .with_behavior(MissedTickBehavior::Skip)
             .with_phase(Duration::from_millis(250)),
     );
-
-    // Plugin schedules
-    for pending in drain_registered_schedules() {
-        timed.register(pending.into_timed());
-    }
 
     timed
 }

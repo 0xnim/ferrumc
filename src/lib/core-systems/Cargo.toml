@@ -16,6 +16,8 @@ ferrumc-state = { workspace = true }
 
 # Domain APIs
 ferrumc-animation-api = { workspace = true }
+ferrumc-block-api = { workspace = true }
+ferrumc-chat-api = { workspace = true }
 
 [lints]
 workspace = true
