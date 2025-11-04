@@ -1,0 +1,21 @@
+[package]
+name = "ferrumc-core-systems"
+version = "0.1.0"
+edition = "2021"
+description = "Core I/O systems for FerrumC - converts packets to/from domain events"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+tracing = { workspace = true }
+
+# Core infrastructure
+ferrumc-core = { workspace = true }
+ferrumc-net = { workspace = true }
+ferrumc-net-codec = { workspace = true }
+ferrumc-state = { workspace = true }
+
+# Domain APIs
+ferrumc-animation-api = { workspace = true }
+
+[lints]
+workspace = true

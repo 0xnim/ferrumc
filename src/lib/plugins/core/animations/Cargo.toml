@@ -1,0 +1,13 @@
+[package]
+name = "ferrumc-plugin-animations"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ferrumc-plugin-api = { workspace = true }
+ferrumc-animation-api = { workspace = true }
+bevy_ecs = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

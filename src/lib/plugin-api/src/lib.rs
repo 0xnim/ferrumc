@@ -30,6 +30,7 @@
 pub mod context;
 pub mod entity;
 pub mod events;
+pub mod macros;
 pub mod world;
 
 #[cfg(test)]

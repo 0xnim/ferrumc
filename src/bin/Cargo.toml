@@ -32,7 +32,9 @@ ferrumc-world-gen = { workspace = true }
 ferrumc-threadpool = { workspace = true }
 ferrumc-inventories = { workspace = true }
 ferrumc-plugin-api = { workspace = true }
+ferrumc-core-systems = { workspace = true }
 ferrumc-plugin-hello = { path = "../lib/plugins/examples/hello" }
+ferrumc-plugin-animations = { path = "../lib/plugins/core/animations" }
 once_cell = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }

@@ -164,6 +164,15 @@ fn build_timed_scheduler() -> Scheduler {
     // Tick schedule
     let build_tick = |s: &mut Schedule| {
         s.set_executor_kind(ExecutorKind::SingleThreaded);
+        
+        // Core I/O layer: packet → event converters
+        s.add_systems(ferrumc_core_systems::animations::handle_swing_arm_packets);
+        s.add_systems(ferrumc_core_systems::animations::handle_player_command_packets);
+        
+        // Core I/O layer: event → packet broadcasters
+        s.add_systems(ferrumc_core_systems::animations::broadcast_animations);
+        s.add_systems(ferrumc_core_systems::animations::broadcast_pose_changes);
+        
         register_packet_handlers(s);
         register_player_systems(s);
         register_command_systems(s);

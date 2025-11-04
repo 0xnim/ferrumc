@@ -41,6 +41,9 @@ members = [
     "src/lib/registry",
     "src/lib/scheduler",
     "src/lib/plugins/examples/hello",
+    "src/lib/apis/animation-api",
+    "src/lib/core-systems",
+    "src/lib/plugins/core/animations",
 ]
 
 #================== Lints ==================#
@@ -116,6 +119,12 @@ ferrumc-utils = { path = "src/lib/utils" }
 ferrumc-world = { path = "src/lib/world" }
 ferrumc-world-gen = { path = "src/lib/world_gen" }
 ferrumc-inventories = { path = "src/lib/inventories" }
+
+# Domain APIs
+ferrumc-animation-api = { path = "src/lib/apis/animation-api" }
+
+# Core Systems (I/O layer)
+ferrumc-core-systems = { path = "src/lib/core-systems" }
 
 # Asynchronous
 tokio = { version = "1.48.0", features = ["macros", "net", "rt", "sync", "time", "io-util", "test-util"], default-features = false }

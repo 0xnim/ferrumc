@@ -203,6 +203,9 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     registry.load_config("plugins.toml")?;
 
     // Register plugins
+    // Core gameplay plugins
+    registry.register::<ferrumc_plugin_animations::AnimationsPlugin>();
+    
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();
 
