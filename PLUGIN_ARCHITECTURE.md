@@ -1622,12 +1622,158 @@ apply_damage (priority 0)
 
 ### Best Practices for Multi-Plugin Systems
 
-1. **Design for extension**: Use `Cell<T>` for values other plugins might modify
+1. **Design for extension**: Use `Arc<RwLock<T>>` for values other plugins might modify
 2. **Document contracts**: Clearly specify which plugins read/modify events
 3. **Declare dependencies**: Use `dependencies()` to ensure correct load order
 4. **Use priority wisely**: Base systems = high priority, modifiers = medium, handlers = low
 5. **Provide resources**: Share configuration via ECS resources
 6. **Test independently**: Each plugin should work with/without others
+
+---
+
+## API Design: Directional Separation
+
+### The EventReader/EventWriter Conflict
+
+**Problem:** Bevy ECS prevents using `EventReader<T>` and `EventWriter<T>` for the same event type in one system.
+
+**Common mistake:**
+```rust
+// ❌ This will cause runtime panic!
+#[derive(SystemParam)]
+pub struct BlockAPI<'w> {
+    // Plugin writes these
+    place_events: EventWriter<'w, PlaceBlockRequest>,
+    // Core reads these (conflict!)
+    // EventReader<PlaceBlockRequest> in another system will fail
+}
+```
+
+### Solution: Separate APIs by Event Direction
+
+Split APIs into **directional SystemParams**:
+
+#### Pattern 1: Request API (Plugin → Core)
+
+```rust
+/// API for plugins to REQUEST actions from core
+#[derive(SystemParam)]
+pub struct BlockRequests<'w> {
+    place_events: EventWriter<'w, PlaceBlockRequest>,
+    break_events: EventWriter<'w, BreakBlockRequest>,
+}
+
+impl<'w> BlockRequests<'w> {
+    pub fn place_block(&mut self, player: Entity, position: NetworkPosition, block: BlockStateId, sequence: VarInt) {
+        self.place_events.write(PlaceBlockRequest { player, position, block, sequence });
+    }
+    
+    pub fn break_block(&mut self, player: Entity, position: NetworkPosition, sequence: VarInt) {
+        self.break_events.write(BreakBlockRequest { player, position, sequence });
+    }
+}
+```
+
+**Used by:** Plugins (write requests, core reads)
+
+#### Pattern 2: Broadcast API (Core → Network)
+
+```rust
+/// API for core systems to BROADCAST to network
+#[derive(SystemParam)]
+pub struct BlockBroadcasts<'w> {
+    update_events: EventWriter<'w, SendBlockUpdateRequest>,
+    ack_events: EventWriter<'w, SendBlockChangeAckRequest>,
+}
+
+impl<'w> BlockBroadcasts<'w> {
+    pub fn broadcast_block_update(&mut self, position: NetworkPosition, block: BlockStateId) {
+        self.update_events.write(SendBlockUpdateRequest { position, block, exclude_player: None });
+    }
+    
+    pub fn send_ack(&mut self, player: Entity, sequence: VarInt) {
+        self.ack_events.write(SendBlockChangeAckRequest { player, sequence });
+    }
+}
+```
+
+**Used by:** Core-systems (write broadcasts, no one reads these - they go to broadcasters)
+
+#### Usage Example
+
+**Plugin (uses BlockRequests):**
+```rust
+fn handle_block_placement(
+    mut events: EventReader<BlockPlaceAttemptEvent>,
+    mut blocks: BlockRequests,  // ← Request API
+    query: Query<&Inventory>,
+) {
+    for event in events.read() {
+        // Validation logic...
+        blocks.place_block(event.player, position, block_id, sequence);
+    }
+}
+```
+
+**Core-System (uses BlockBroadcasts + EventReader):**
+```rust
+fn handle_place_block_requests(
+    mut events: EventReader<PlaceBlockRequest>,  // ← Read requests
+    mut blocks: BlockBroadcasts,                  // ← Broadcast API (no conflict!)
+    state: Res<GlobalStateResource>,
+) {
+    for request in events.read() {
+        // Load chunk, place block, save chunk...
+        blocks.send_ack(request.player, request.sequence);
+        blocks.broadcast_block_update(request.position, request.block);
+    }
+}
+```
+
+**No conflict!** EventReader and EventWriter access different event types.
+
+#### Backward Compatibility
+
+```rust
+/// Alias for plugin convenience
+pub type BlockAPI<'w> = BlockRequests<'w>;
+```
+
+Existing plugin code continues working unchanged.
+
+### Why This Matters
+
+| Design | Plugin Uses | Core Uses | Conflict? |
+|--------|-------------|-----------|-----------|
+| **❌ Mixed API** | BlockAPI (writes requests + broadcasts) | EventReader + BlockAPI | ✅ Yes - can't have both |
+| **✅ Directional** | BlockRequests (writes requests) | EventReader + BlockBroadcasts | ❌ No - different events |
+
+**Key Principle:** Events flow in ONE direction per API. Never mix bidirectional events in one SystemParam.
+
+### Applying to Other APIs
+
+**AnimationAPI** - Already correct (unidirectional):
+```rust
+#[derive(SystemParam)]
+pub struct AnimationAPI<'w> {
+    // All flow the same direction: Plugin → Core
+    animation_events: EventWriter<'w, PlayAnimationRequest>,
+    pose_events: EventWriter<'w, SetEntityPoseRequest>,
+}
+```
+
+**ChatAPI** - Already correct (unidirectional):
+```rust
+#[derive(SystemParam)]
+pub struct ChatAPI<'w> {
+    // All flow the same direction: Plugin → Core
+    events: EventWriter<'w, SendChatMessageRequest>,
+}
+```
+
+**Future APIs:** Follow the directional separation pattern:
+- If API mixes directions → Split into Requests and Broadcasts
+- If API is unidirectional → Keep as single SystemParam
 
 ---
 
