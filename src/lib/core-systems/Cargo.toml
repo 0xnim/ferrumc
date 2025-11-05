@@ -6,10 +6,13 @@ description = "Core I/O systems for FerrumC - converts packets to/from domain ev
 
 [dependencies]
 bevy_ecs = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
 
 # Core infrastructure
 ferrumc-core = { workspace = true }
+ferrumc-inventories = { workspace = true }
+ferrumc-macros = { workspace = true }
 ferrumc-net = { workspace = true }
 ferrumc-net-codec = { workspace = true }
 ferrumc-state = { workspace = true }
@@ -21,6 +24,7 @@ ferrumc-block-api = { workspace = true }
 ferrumc-chat-api = { workspace = true }
 ferrumc-inventory-api = { workspace = true }
 ferrumc-join-leave-api = { workspace = true }
+ferrumc-movement-api = { workspace = true }
 
 [lints]
 workspace = true

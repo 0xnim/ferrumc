@@ -46,6 +46,7 @@ members = [
     "src/lib/apis/chat-api",
     "src/lib/apis/inventory-api",
     "src/lib/apis/join-leave-api",
+    "src/lib/apis/movement-api",
     "src/lib/core-systems",
     "src/lib/plugins/core/animations",
     "src/lib/plugins/core/blocks",
@@ -53,6 +54,7 @@ members = [
     "src/lib/plugins/core/default-commands",
     "src/lib/plugins/core/inventory",
     "src/lib/plugins/core/join-leave",
+    "src/lib/plugins/core/movement",
     "src/lib/plugins/test_violations",
 ]
 
@@ -136,6 +138,7 @@ ferrumc-block-api = { path = "src/lib/apis/block-api" }
 ferrumc-chat-api = { path = "src/lib/apis/chat-api" }
 ferrumc-inventory-api = { path = "src/lib/apis/inventory-api" }
 ferrumc-join-leave-api = { path = "src/lib/apis/join-leave-api" }
+ferrumc-movement-api = { path = "src/lib/apis/movement-api" }
 
 # Core Systems (I/O layer)
 ferrumc-core-systems = { path = "src/lib/core-systems" }

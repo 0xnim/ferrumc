@@ -41,6 +41,7 @@ ferrumc-plugin-chat = { path = "../lib/plugins/core/chat" }
 ferrumc-plugin-default-commands = { path = "../lib/plugins/core/default-commands" }
 ferrumc-plugin-inventory = { path = "../lib/plugins/core/inventory" }
 ferrumc-plugin-join-leave = { path = "../lib/plugins/core/join-leave" }
+ferrumc-plugin-movement = { path = "../lib/plugins/core/movement" }
 once_cell = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }

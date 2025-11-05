@@ -1,5 +1,5 @@
 use crate::errors::BinaryError;
-use crate::packet_handlers::{play_packets, register_player_systems};
+use crate::packet_handlers::play_packets;
 use crate::register_events::register_events;
 use crate::register_resources::register_resources;
 use crate::systems::lan_pinger::LanPinger;
@@ -179,6 +179,10 @@ fn build_timed_scheduler_base() -> Scheduler {
         s.add_systems(ferrumc_core_systems::chat::handle_chat_packets);
         s.add_systems(ferrumc_core_systems::inventory::handle_set_creative_slot_packets);
         s.add_systems(ferrumc_core_systems::inventory::handle_set_held_item_packets);
+        s.add_systems(ferrumc_core_systems::movement::packet_handlers::handle_set_player_position_packets);
+        s.add_systems(ferrumc_core_systems::movement::packet_handlers::handle_set_player_rotation_packets);
+        s.add_systems(ferrumc_core_systems::movement::packet_handlers::handle_set_player_position_and_rotation_packets);
+        s.add_systems(ferrumc_core_systems::movement::packet_handlers::handle_transform_events);
         
         // Core I/O layer: event → packet broadcasters
         s.add_systems(ferrumc_core_systems::animations::broadcast_animations);
@@ -186,15 +190,18 @@ fn build_timed_scheduler_base() -> Scheduler {
         s.add_systems(ferrumc_core_systems::blocks::broadcast_block_updates);
         s.add_systems(ferrumc_core_systems::blocks::send_block_change_acks);
         s.add_systems(ferrumc_core_systems::chat::broadcast_chat_messages);
+        s.add_systems(ferrumc_core_systems::inventory::broadcaster::send_inventory_updates);
         s.add_systems(ferrumc_core_systems::join_leave::broadcaster::broadcast_join_messages);
         s.add_systems(ferrumc_core_systems::join_leave::broadcaster::broadcast_leave_messages);
+        s.add_systems(ferrumc_core_systems::movement::broadcaster::apply_movement_requests);
+        s.add_systems(ferrumc_core_systems::movement::broadcaster::broadcast_movement_updates);
+        s.add_systems(ferrumc_core_systems::movement::broadcaster::broadcast_head_rotation);
         
         // Core I/O layer: block operations (chunk loading/saving)
         s.add_systems(ferrumc_core_systems::blocks::handle_place_block_requests);
         s.add_systems(ferrumc_core_systems::blocks::handle_break_block_requests);
         
         register_packet_handlers(s);
-        register_player_systems(s);
         register_command_systems(s);
         register_game_systems(s);
     };

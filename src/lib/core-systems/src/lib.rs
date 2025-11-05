@@ -19,3 +19,4 @@ pub mod blocks;
 pub mod chat;
 pub mod inventory;
 pub mod join_leave;
+pub mod movement;

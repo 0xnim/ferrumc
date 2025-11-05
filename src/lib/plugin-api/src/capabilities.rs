@@ -40,7 +40,7 @@ pub struct PluginCapabilities {
     /// Access to entity API (future)
     pub entity_api: bool,
     
-    /// Access to movement API (future)
+    /// Access to movement API
     pub movement_api: bool,
     
     /// Ability to query entities and their safe components
@@ -164,7 +164,7 @@ impl PluginCapabilitiesBuilder {
         self
     }
     
-    /// Request access to movement API (future)
+    /// Request access to movement API
     pub fn with_movement_api(mut self) -> Self {
         self.caps.movement_api = true;
         self

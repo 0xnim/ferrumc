@@ -234,6 +234,7 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     registry.register::<ferrumc_plugin_default_commands::DefaultCommandsPlugin>();
     registry.register::<ferrumc_plugin_inventory::InventoryPlugin>();
     registry.register::<ferrumc_plugin_join_leave::JoinLeavePlugin>();
+    registry.register::<ferrumc_plugin_movement::MovementPlugin>();
     
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();

@@ -24,3 +24,16 @@ pub struct SetHeldItemEvent {
     /// The hotbar slot index (0-8)
     pub slot_index: i16,
 }
+
+/// Request to send an inventory update to a player
+///
+/// Plugin sends this to core to broadcast inventory changes.
+#[derive(Event, Clone)]
+pub struct SendInventoryUpdateRequest {
+    /// The player to send the update to
+    pub player: Entity,
+    /// The slot index being updated
+    pub slot_index: i16,
+    /// The slot data
+    pub slot: InventorySlot,
+}
