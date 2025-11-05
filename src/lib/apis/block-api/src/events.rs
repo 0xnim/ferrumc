@@ -70,3 +70,26 @@ pub struct SendBlockChangeAckRequest {
     pub player: Entity,
     pub sequence: VarInt,
 }
+
+/// Request to place a block in the world
+///
+/// This is emitted by plugins after validation.
+/// Core systems handle the actual I/O (chunk loading, saving, broadcasting).
+#[derive(Event, Clone)]
+pub struct PlaceBlockRequest {
+    pub player: Entity,
+    pub position: NetworkPosition,
+    pub block: BlockStateId,
+    pub sequence: VarInt,
+}
+
+/// Request to break a block in the world
+///
+/// This is emitted by plugins after validation.
+/// Core systems handle the actual I/O (chunk loading, saving, broadcasting).
+#[derive(Event, Clone)]
+pub struct BreakBlockRequest {
+    pub player: Entity,
+    pub position: NetworkPosition,
+    pub sequence: VarInt,
+}

@@ -44,7 +44,11 @@ impl Plugin for DefaultCommandsPlugin {
     }
 
     fn description(&self) -> &'static str {
-        "Bridges legacy command responses to the chat API"
+        "Bridges legacy command responses to the chat API (TEMPORARY)"
+    }
+
+    fn priority(&self) -> i32 {
+        10 // Runs after other systems to drain message queue
     }
 
     fn build(&self, ctx: &mut PluginContext<'_>) {

@@ -49,6 +49,10 @@ impl Plugin for ChatPlugin {
         "Handles chat message formatting and broadcasting"
     }
 
+    fn priority(&self) -> i32 {
+        30 // Modifier - formats messages before broadcasting
+    }
+
     fn build(&self, ctx: &mut PluginContext<'_>) {
         info!("Loading chat plugin");
 

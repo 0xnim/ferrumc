@@ -10,14 +10,10 @@
 //! - Plugin uses InventoryAPI to interact with inventory state
 
 use bevy_ecs::prelude::*;
-use ferrumc_inventories::defined_slots::player::HOTBAR_SLOT_6;
 use ferrumc_inventories::hotbar::Hotbar;
 use ferrumc_inventories::inventory::Inventory;
-use ferrumc_inventories::item::ItemID;
-use ferrumc_inventories::slot::InventorySlot;
 use ferrumc_inventory_api::{SetCreativeSlotEvent, SetHeldItemEvent};
 use ferrumc_plugin_api::{register_events, Plugin, PluginContext};
-use ferrumc_state::GlobalStateResource;
 use tracing::{debug, error, info};
 
 #[derive(Default)]
@@ -38,6 +34,10 @@ impl Plugin for InventoryPlugin {
 
     fn description(&self) -> &'static str {
         "Handles creative mode inventory and hotbar selection"
+    }
+
+    fn priority(&self) -> i32 {
+        40 // Inventory management logic
     }
 
     fn build(&self, ctx: &mut PluginContext<'_>) {
@@ -62,7 +62,6 @@ impl Plugin for InventoryPlugin {
 /// - Handles special cases (count=0 clears slot)
 fn handle_creative_slot_changes(
     mut events: EventReader<SetCreativeSlotEvent>,
-    state: Res<GlobalStateResource>,
     mut query: Query<&mut Inventory>,
 ) {
     for event in events.read() {
@@ -70,10 +69,6 @@ fn handle_creative_slot_changes(
             "Handling creative slot change for player {:?}: slot_index={}, count={}",
             event.player, event.slot_index, event.slot.count.0
         );
-
-        if !state.0.players.is_connected(event.player) {
-            continue;
-        }
 
         let Ok(mut inventory) = query.get_mut(event.player) else {
             error!("Could not find inventory for player {:?}", event.player);
@@ -97,25 +92,6 @@ fn handle_creative_slot_changes(
                 );
             }
         }
-
-        // Display the updated inventory (example item in hotbar slot 6)
-        if let Err(err) = inventory.set_item_with_update(
-            HOTBAR_SLOT_6 as usize,
-            InventorySlot {
-                count: 1.into(),
-                item_id: Some(ItemID::new(872)), // Example item ID for the creative mode slot
-                components_to_add_count: None,
-                components_to_remove_count: None,
-                components_to_add: None,
-                components_to_remove: None,
-            },
-            event.player,
-        ) {
-            error!(
-                "Failed to update creative mode slot for player {:?}: {:?}",
-                event.player, err
-            );
-        }
     }
 }
 
@@ -126,7 +102,6 @@ fn handle_creative_slot_changes(
 /// - Updates the selected hotbar slot
 fn handle_held_item_changes(
     mut events: EventReader<SetHeldItemEvent>,
-    state: Res<GlobalStateResource>,
     mut query: Query<&mut Hotbar>,
 ) {
     for event in events.read() {
@@ -134,11 +109,6 @@ fn handle_held_item_changes(
             "Handling held item change for player {:?}: slot_index={}",
             event.player, event.slot_index
         );
-
-        if !state.0.players.is_connected(event.player) {
-            error!("Player {:?} is not connected", event.player);
-            continue;
-        }
 
         // Validate slot index (0-8)
         if !(0..=8).contains(&event.slot_index) {

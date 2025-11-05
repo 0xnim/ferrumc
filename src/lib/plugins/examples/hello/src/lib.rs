@@ -32,6 +32,10 @@ impl Plugin for HelloPlugin {
         "A simple hello world plugin demonstrating the plugin API"
     }
 
+    fn priority(&self) -> i32 {
+        0 // Example plugin, no specific priority needed
+    }
+
     fn build(&self, ctx: &mut PluginContext) {
         // Get configuration (with defaults)
         let message = ctx

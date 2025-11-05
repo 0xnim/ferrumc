@@ -50,6 +50,10 @@ impl Plugin for AnimationsPlugin {
         "Handles entity animations like arm swings and damage effects"
     }
 
+    fn priority(&self) -> i32 {
+        50 // Base system - calculates which animations to play
+    }
+
     fn build(&self, ctx: &mut PluginContext<'_>) {
         info!("Loading animations plugin");
 

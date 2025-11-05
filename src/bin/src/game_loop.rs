@@ -187,6 +187,10 @@ fn build_timed_scheduler_base() -> Scheduler {
         s.add_systems(ferrumc_core_systems::blocks::send_block_change_acks);
         s.add_systems(ferrumc_core_systems::chat::broadcast_chat_messages);
         
+        // Core I/O layer: block operations (chunk loading/saving)
+        s.add_systems(ferrumc_core_systems::blocks::handle_place_block_requests);
+        s.add_systems(ferrumc_core_systems::blocks::handle_break_block_requests);
+        
         register_packet_handlers(s);
         register_player_systems(s);
         register_command_systems(s);

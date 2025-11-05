@@ -1,30 +1,26 @@
 //! Blocks Plugin for FerrumC
 //!
 //! This plugin implements the gameplay logic for block placement and breaking.
-//! It handles validation, collision detection, and world updates.
+//! It handles validation (collision detection, permissions, inventory checks).
 //!
 //! # Architecture
 //!
 //! - Core converts packets → events (BlockPlaceAttemptEvent, BlockBreakAttemptEvent)
-//! - This plugin reads events and applies game logic
-//! - Plugin uses BlockAPI to broadcast block updates
-//! - Core converts block update requests → packets
+//! - **This plugin** validates placement/breaking (game logic only - NO I/O)
+//! - Plugin uses BlockAPI to request block operations
+//! - Core handles chunk loading/saving and broadcasts (I/O layer)
 
 mod item_mapping;
 
 use bevy_ecs::prelude::*;
-use ferrumc_block_api::{
-    BlockAPI, BlockBreakAttemptEvent, BlockPlaceAttemptEvent, Hand, SendBlockChangeAckRequest,
-    SendBlockUpdateRequest,
-};
+use ferrumc_block_api::{BlockAPI, BlockBreakAttemptEvent, BlockPlaceAttemptEvent, Hand};
 use ferrumc_core::collisions::bounds::CollisionBounds;
 use ferrumc_core::transform::position::Position;
 use ferrumc_inventories::hotbar::Hotbar;
 use ferrumc_inventories::inventory::Inventory;
+use ferrumc_net_codec::net_types::network_position::NetworkPosition;
 use ferrumc_plugin_api::{register_events, Plugin, PluginContext};
-use ferrumc_state::GlobalStateResource;
 use ferrumc_world::block_state_id::BlockStateId;
-use std::sync::Arc;
 use tracing::{debug, error, info, trace};
 
 use item_mapping::ITEM_TO_BLOCK_MAPPING;
@@ -46,22 +42,20 @@ impl Plugin for BlocksPlugin {
     }
 
     fn description(&self) -> &'static str {
-        "Handles block placement and breaking with collision detection"
+        "Handles block placement and breaking validation (game logic only)"
+    }
+
+    fn priority(&self) -> i32 {
+        40 // Validation and placement logic
     }
 
     fn build(&self, ctx: &mut PluginContext<'_>) {
         info!("Loading blocks plugin");
 
         // Register events from block API
-        register_events!(
-            ctx,
-            BlockPlaceAttemptEvent,
-            BlockBreakAttemptEvent,
-            SendBlockUpdateRequest,
-            SendBlockChangeAckRequest
-        );
+        register_events!(ctx, BlockPlaceAttemptEvent, BlockBreakAttemptEvent);
 
-        // Register our gameplay logic systems
+        // Register our gameplay logic systems (validation only - no I/O!)
         ctx.add_tick_system(handle_block_placement);
         ctx.add_tick_system(handle_block_breaking);
 
@@ -71,14 +65,14 @@ impl Plugin for BlocksPlugin {
 
 /// Handle block placement attempts
 ///
-/// This is pure game logic:
-/// - Validates the placement (inventory, collision, etc.)
-/// - Updates the world
-/// - Broadcasts updates to players
+/// This is PURE GAME LOGIC - no I/O operations!
+/// - Validates inventory (do they have the item?)
+/// - Validates collision (would it intersect entities?)
+/// - Maps item to block state
+/// - Calls BlockAPI to request placement (core handles I/O)
 fn handle_block_placement(
     mut events: EventReader<BlockPlaceAttemptEvent>,
     mut blocks: BlockAPI,
-    state: Res<GlobalStateResource>,
     query: Query<(&Inventory, &Hotbar)>,
     pos_query: Query<(&Position, &CollisionBounds)>,
 ) {
@@ -89,13 +83,13 @@ fn handle_block_placement(
             continue;
         }
 
-        // Get player inventory
+        // Validate: Get player inventory
         let Ok((inventory, hotbar)) = query.get(event.player) else {
             debug!("Could not get inventory for player {:?}", event.player);
             continue;
         };
 
-        // Get the item in the selected hotbar slot
+        // Validate: Get the item in the selected hotbar slot
         let slot_index = hotbar.selected_slot as usize;
         let Ok(slot) = inventory.get_item(slot_index) else {
             error!("Could not fetch inventory slot {}", slot_index);
@@ -107,35 +101,22 @@ fn handle_block_placement(
             continue;
         };
 
-        // Get the item ID
+        // Validate: Get the item ID
         let Some(item_id) = selected_item.item_id else {
             error!("Selected item has no item ID");
             continue;
         };
 
-        // Map item to block state
+        // Validate: Map item to block state
         let Some(&mapped_block_state_id) = ITEM_TO_BLOCK_MAPPING.get(&item_id.0 .0) else {
             error!("No block mapping found for item ID: {}", item_id.0);
             continue;
         };
 
         debug!(
-            "Placing block with item ID: {}, mapped to block state ID: {}",
+            "Validating block placement with item ID: {}, mapped to block state ID: {}",
             item_id.0, mapped_block_state_id
         );
-
-        // Load the chunk
-        let mut chunk = match state.0.world.load_chunk_owned(
-            event.position.x >> 4,
-            event.position.z >> 4,
-            "overworld",
-        ) {
-            Ok(chunk) => chunk,
-            Err(e) => {
-                debug!("Failed to load chunk: {:?}", e);
-                continue;
-            }
-        };
 
         // Calculate the position offset based on the face
         let (x_offset, y_offset, z_offset) = event.face.offset();
@@ -145,7 +126,7 @@ fn handle_block_placement(
             event.position.z + z_offset,
         );
 
-        // Check collision with entities
+        // Validate: Check collision with entities
         let does_collide = pos_query.iter().any(|(pos, bounds)| {
             bounds.collides(
                 (pos.x, pos.y, pos.z),
@@ -166,94 +147,43 @@ fn handle_block_placement(
             continue;
         }
 
-        // Set the block in the chunk
-        if let Err(err) = chunk.set_block(
-            x & 0xF,
-            y as i32,
-            z & 0xF,
+        // All validation passed! Request block placement via API
+        // The core will handle: chunk loading, block setting, chunk saving, broadcasting
+        blocks.place_block(
+            event.player,
+            NetworkPosition { x, y, z },
             BlockStateId(mapped_block_state_id as u32),
-        ) {
-            error!("Failed to set block: {:?}", err);
-            continue;
-        }
-
-        // Save the chunk
-        if let Err(err) = state.0.world.save_chunk(Arc::from(chunk)) {
-            error!("Failed to save chunk after block placement: {:?}", err);
-        } else {
-            trace!("Block placed at ({}, {}, {})", x, y, z);
-        }
-
-        // Send acknowledgment to the player
-        blocks.send_ack(event.player, event.sequence);
-
-        // Broadcast block update to all players
-        blocks.broadcast_block_update(
-            ferrumc_net_codec::net_types::network_position::NetworkPosition { x, y, z },
-            BlockStateId(mapped_block_state_id as u32),
+            event.sequence,
         );
+
+        debug!("Block placement validated and requested at ({}, {}, {})", x, y, z);
     }
 }
 
 /// Handle block breaking attempts
 ///
-/// This is pure game logic:
-/// - Validates the break (permissions, gamemode, etc.)
-/// - Updates the world
-/// - Broadcasts updates to players
+/// This is PURE GAME LOGIC - no I/O operations!
+/// - Validates permissions (can they break blocks?)
+/// - Validates gamemode
+/// - Calls BlockAPI to request breaking (core handles I/O)
 fn handle_block_breaking(
     mut events: EventReader<BlockBreakAttemptEvent>,
     mut blocks: BlockAPI,
-    state: Res<GlobalStateResource>,
 ) {
     for event in events.read() {
-        // Load or generate the chunk
-        let mut chunk = match state.0.world.load_chunk_owned(
-            event.position.x >> 4,
-            event.position.z >> 4,
-            "overworld",
-        ) {
-            Ok(chunk) => chunk,
-            Err(e) => {
-                trace!("Chunk not found, generating new chunk: {:?}", e);
-                match state
-                    .0
-                    .terrain_generator
-                    .generate_chunk(event.position.x >> 4, event.position.z >> 4)
-                {
-                    Ok(chunk) => chunk,
-                    Err(e) => {
-                        error!("Failed to generate chunk: {:?}", e);
-                        continue;
-                    }
-                }
-            }
-        };
+        // Validation would go here:
+        // - Check gamemode (creative/survival)
+        // - Check permissions (protected areas, etc.)
+        // - Check tool requirements
+        // For now, we allow all breaks
 
-        // Calculate relative position within chunk
-        let (relative_x, relative_y, relative_z) = (
-            event.position.x & 0xF,
-            event.position.y as i32,
-            event.position.z & 0xF,
+        // Request block break via API
+        // The core will handle: chunk loading, setting to air, chunk saving, broadcasting
+        blocks.break_block(event.player, event.position.clone(), event.sequence);
+
+        debug!(
+            "Block break validated and requested at ({}, {}, {})",
+            event.position.x, event.position.y, event.position.z
         );
-
-        // Set block to air
-        if let Err(err) = chunk.set_block(relative_x, relative_y, relative_z, BlockStateId::default()) {
-            error!("Failed to break block: {:?}", err);
-            continue;
-        }
-
-        // Save the chunk
-        if let Err(err) = state.0.world.save_chunk(Arc::new(chunk)) {
-            error!("Failed to save chunk after block break: {:?}", err);
-        } else {
-            trace!("Block broken at ({}, {}, {})", event.position.x, event.position.y, event.position.z);
-        }
-
-        // Send acknowledgment to the player who broke the block
-        blocks.send_ack(event.player, event.sequence);
-
-        // Broadcast block update to all players
-        blocks.broadcast_block_update(event.position.clone(), BlockStateId::default());
     }
 }

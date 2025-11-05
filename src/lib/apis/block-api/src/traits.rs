@@ -3,7 +3,9 @@ use bevy_ecs::system::SystemParam;
 use ferrumc_net_codec::net_types::network_position::NetworkPosition;
 use ferrumc_world::block_state_id::BlockStateId;
 
-use crate::events::{SendBlockChangeAckRequest, SendBlockUpdateRequest};
+use crate::events::{
+    BreakBlockRequest, PlaceBlockRequest, SendBlockChangeAckRequest, SendBlockUpdateRequest,
+};
 use ferrumc_net_codec::net_types::var_int::VarInt;
 
 /// Plugin API for block operations
@@ -26,6 +28,8 @@ use ferrumc_net_codec::net_types::var_int::VarInt;
 pub struct BlockAPI<'w> {
     update_events: EventWriter<'w, SendBlockUpdateRequest>,
     ack_events: EventWriter<'w, SendBlockChangeAckRequest>,
+    place_events: EventWriter<'w, PlaceBlockRequest>,
+    break_events: EventWriter<'w, BreakBlockRequest>,
 }
 
 impl<'w> BlockAPI<'w> {
@@ -56,6 +60,39 @@ impl<'w> BlockAPI<'w> {
     pub fn send_ack(&mut self, player: Entity, sequence: VarInt) {
         self.ack_events.write(SendBlockChangeAckRequest {
             player,
+            sequence,
+        });
+    }
+
+    /// Request to place a block (core handles chunk I/O)
+    ///
+    /// This should be called after validation logic in plugins.
+    /// Core systems will load the chunk, place the block, save the chunk,
+    /// and broadcast the update.
+    pub fn place_block(
+        &mut self,
+        player: Entity,
+        position: NetworkPosition,
+        block: BlockStateId,
+        sequence: VarInt,
+    ) {
+        self.place_events.write(PlaceBlockRequest {
+            player,
+            position,
+            block,
+            sequence,
+        });
+    }
+
+    /// Request to break a block (core handles chunk I/O)
+    ///
+    /// This should be called after validation logic in plugins.
+    /// Core systems will load the chunk, break the block (set to air),
+    /// save the chunk, and broadcast the update.
+    pub fn break_block(&mut self, player: Entity, position: NetworkPosition, sequence: VarInt) {
+        self.break_events.write(BreakBlockRequest {
+            player,
+            position,
             sequence,
         });
     }

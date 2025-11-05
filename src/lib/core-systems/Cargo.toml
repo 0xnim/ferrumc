@@ -13,6 +13,7 @@ ferrumc-core = { workspace = true }
 ferrumc-net = { workspace = true }
 ferrumc-net-codec = { workspace = true }
 ferrumc-state = { workspace = true }
+ferrumc-world = { workspace = true }
 
 # Domain APIs
 ferrumc-animation-api = { workspace = true }
