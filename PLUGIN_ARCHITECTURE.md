@@ -12,8 +12,9 @@
 4. [Event System](#event-system)
 5. [Plugin Lifecycle](#plugin-lifecycle)
 6. [API Design Patterns](#api-design-patterns)
-7. [Implementation Guide](#implementation-guide)
-8. [Examples](#examples)
+7. [Plugin Coordination & Interaction](#plugin-coordination--interaction)
+8. [Implementation Guide](#implementation-guide)
+9. [Examples](#examples)
 
 ---
 
@@ -1134,6 +1135,499 @@ version = "1.2.0"  # Semantic versioning
 # New features = minor version bump
 # Bug fixes = patch version bump
 ```
+
+---
+
+## Plugin Coordination & Interaction
+
+### The Multi-Plugin Problem
+
+**Scenario:** Plugin A implements fall damage. Plugin B wants to modify it (feather falling enchantment).
+
+**Challenge:** How do plugins coordinate when working on the same feature?
+
+### Solution 1: Modifiable Events (Thread-Safe Interior Mutability)
+
+Use `Arc<RwLock<T>>` for fields that plugins can modify:
+
+> **Note:** We use `Arc<RwLock<T>>` instead of `Cell<T>` because Bevy's `Event` trait
+> requires `Send + Sync`. `Cell` is not thread-safe, but `Arc<RwLock<T>>` provides
+> thread-safe interior mutability with shared ownership.
+
+```rust
+use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+#[derive(Event, Clone)]
+pub struct DealDamageEvent {
+    pub player: Entity,
+    pub amount: Arc<RwLock<f32>>,   // ← Thread-safe mutable value
+    pub damage_type: DamageType,
+    
+    // Support cancellation with atomics
+    cancelled: Arc<AtomicBool>,
+}
+
+impl DealDamageEvent {
+    pub fn new(player: Entity, amount: f32, damage_type: DamageType) -> Self {
+        Self {
+            player,
+            amount: Arc::new(RwLock::new(amount)),
+            damage_type,
+            cancelled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+    
+    /// Modify damage amount with a function
+    pub fn modify_amount<F>(&self, f: F) 
+    where 
+        F: FnOnce(f32) -> f32 
+    {
+        if let Ok(mut amount) = self.amount.write() {
+            *amount = f(*amount);
+        }
+    }
+    
+    /// Get current damage amount
+    pub fn get_amount(&self) -> f32 {
+        self.amount.read().map(|a| *a).unwrap_or(0.0)
+    }
+    
+    /// Set damage amount directly
+    pub fn set_amount(&self, amount: f32) {
+        if let Ok(mut a) = self.amount.write() {
+            *a = amount;
+        }
+    }
+    
+    /// Cancel the damage entirely
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+    
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
+    }
+}
+```
+
+**Usage in Multiple Plugins:**
+
+```rust
+// Plugin A: Fall Damage (calculates base damage)
+fn calculate_fall_damage(
+    mut events: EventReader<PlayerLandEvent>,
+    world: &mut World,
+) {
+    for event in events.read() {
+        let fall_distance = event.distance;
+        let damage = (fall_distance - 3.0).max(0.0) * 1.0;
+        
+        world.send_event(DealDamageEvent::new(
+            event.player,
+            damage,
+            DamageType::Fall,
+        ));
+    }
+}
+
+// Plugin B: Feather Falling (modifies damage)
+fn apply_feather_falling(
+    mut events: EventReader<DealDamageEvent>,
+    query: Query<&Inventory>,
+) {
+    for event in events.read() {
+        if event.damage_type != DamageType::Fall {
+            continue;
+        }
+        
+        let Ok(inventory) = query.get(event.player) else { continue };
+        let feather_falling_level = inventory.get_enchantment_level("feather_falling");
+        
+        // Reduce damage by 12% per level
+        event.modify_amount(|damage| {
+            damage * (1.0 - 0.12 * feather_falling_level as f32)
+        });
+    }
+}
+
+// Plugin C: Damage Handler (final processing)
+fn apply_damage(
+    mut events: EventReader<DealDamageEvent>,
+    mut query: Query<&mut Health>,
+) {
+    for event in events.read() {
+        if event.is_cancelled() {
+            continue;
+        }
+        
+        let final_damage = event.get_amount();
+        
+        if let Ok(mut health) = query.get_mut(event.player) {
+            health.current -= final_damage;
+        }
+    }
+}
+```
+
+**Key Point:** All three systems read the **same event**. The event flows through multiple plugins in sequence.
+
+### Solution 2: System Ordering with Plugin Priority
+
+Plugin `priority()` affects system registration order:
+
+```rust
+impl Plugin for FallDamagePlugin {
+    fn priority(&self) -> i32 {
+        50  // Base damage calculation
+    }
+}
+
+impl Plugin for EnchantmentPlugin {
+    fn priority(&self) -> i32 {
+        40  // Modifiers run after base (lower priority = later)
+    }
+}
+
+impl Plugin for HealthPlugin {
+    fn priority(&self) -> i32 {
+        0  // Final processing runs last
+    }
+}
+```
+
+**How it works:**
+
+1. Higher priority plugins register systems **first**
+2. Systems reading the same event run in **registration order**
+3. Within a single tick, event readers process events sequentially
+
+**Execution order for `DealDamageEvent`:**
+```
+Tick Start
+  ↓
+calculate_fall_damage (priority 50) - emits event
+  ↓
+apply_feather_falling (priority 40) - modifies event.amount
+  ↓
+apply_damage (priority 0) - reads final event.amount
+  ↓
+Tick End
+```
+
+### Solution 3: Explicit System Ordering (Advanced)
+
+For fine-grained control, use Bevy's system ordering:
+
+```rust
+fn build(&self, ctx: &mut PluginContext<'_>) {
+    ctx.add_tick_system(
+        apply_feather_falling
+            .after(calculate_fall_damage)  // Explicit ordering
+            .before(apply_damage)
+    );
+}
+```
+
+**Note:** This requires systems to be named/labeled, which may need plugin-api extensions.
+
+### Solution 4: Resource Sharing Between Plugins
+
+Plugins can share data via ECS resources:
+
+```rust
+// Plugin A: Fall Damage - provides config
+#[derive(Resource)]
+pub struct FallDamageConfig {
+    pub base_multiplier: f32,
+    pub safe_fall_distance: f32,
+}
+
+impl Plugin for FallDamagePlugin {
+    fn build(&self, ctx: &mut PluginContext<'_>) {
+        // Insert resource for other plugins to use
+        ctx.insert_resource(FallDamageConfig {
+            base_multiplier: 1.0,
+            safe_fall_distance: 3.0,
+        });
+        
+        ctx.add_tick_system(calculate_fall_damage);
+    }
+}
+
+// Plugin B: Custom Fall Damage Modifier - reads config
+impl Plugin for CustomFallPlugin {
+    fn dependencies(&self) -> Vec<&'static str> {
+        vec!["fall_damage"]  // Ensure FallDamagePlugin loads first
+    }
+    
+    fn build(&self, ctx: &mut PluginContext<'_>) {
+        ctx.add_tick_system(modify_fall_config);
+    }
+}
+
+fn modify_fall_config(config: Res<FallDamageConfig>) {
+    // Read shared config
+    let multiplier = config.base_multiplier;
+    
+    // Note: Res<T> is immutable. For mutable access, use ResMut<T>
+}
+
+fn modify_fall_config_mut(mut config: ResMut<FallDamageConfig>) {
+    // Modify shared config
+    config.base_multiplier = 1.5;
+}
+```
+
+**Best Practice:** Document resources in plugin description:
+
+```rust
+fn description(&self) -> &'static str {
+    "Fall damage calculation. Provides: FallDamageConfig resource."
+}
+```
+
+### Solution 5: Custom Events for Plugin Communication
+
+Plugins can define custom events for coordination:
+
+```rust
+// Plugin A defines event
+#[derive(Event)]
+pub struct FeatherFallingCheckEvent {
+    pub player: Entity,
+    pub level: Cell<u32>,  // Other plugins can modify this
+}
+
+// Plugin A emits event
+fn check_feather_falling(world: &mut World, player: Entity) -> u32 {
+    let event = FeatherFallingCheckEvent {
+        player,
+        level: Cell::new(0),
+    };
+    
+    world.send_event(event.clone());
+    world.flush_events();  // Process immediately
+    
+    event.level.get()  // Get final value after all plugins processed it
+}
+
+// Plugin B responds to event
+fn apply_custom_enchantment(mut events: EventReader<FeatherFallingCheckEvent>) {
+    for event in events.read() {
+        // Custom logic: grant feather falling based on achievements
+        if player_has_achievement(event.player, "fall_master") {
+            event.level.set(event.level.get() + 2);
+        }
+    }
+}
+```
+
+### Complete Example: Fall Damage System with Enchantments
+
+**Plugin A: Fall Damage (Base System)**
+
+```rust
+use ferrumc_plugin_api::*;
+
+#[derive(Resource)]
+pub struct FallDamageConfig {
+    pub safe_distance: f32,
+    pub damage_per_block: f32,
+}
+
+#[derive(Event)]
+pub struct PlayerLandEvent {
+    pub player: Entity,
+    pub distance: f32,
+    pub from_height: f32,
+}
+
+#[derive(Default)]
+pub struct FallDamagePlugin;
+
+impl Plugin for FallDamagePlugin {
+    fn name(&self) -> &'static str { "fall_damage" }
+    fn version(&self) -> &'static str { "1.0.0" }
+    fn priority(&self) -> i32 { 50 }  // High priority - runs early
+    
+    fn build(&self, ctx: &mut PluginContext<'_>) {
+        ctx.insert_resource(FallDamageConfig {
+            safe_distance: 3.0,
+            damage_per_block: 1.0,
+        });
+        
+        ctx.register_event::<PlayerLandEvent>();
+        ctx.add_tick_system(detect_landing);
+        ctx.add_tick_system(calculate_fall_damage);
+    }
+}
+
+fn calculate_fall_damage(
+    mut events: EventReader<PlayerLandEvent>,
+    config: Res<FallDamageConfig>,
+    world: &mut World,
+) {
+    for event in events.read() {
+        let fall_distance = event.distance;
+        
+        if fall_distance <= config.safe_distance {
+            continue;  // No damage from short falls
+        }
+        
+        let damage = (fall_distance - config.safe_distance) * config.damage_per_block;
+        
+        world.send_event(DealDamageEvent::new(
+            event.player,
+            damage,
+            DamageType::Fall,
+        ));
+    }
+}
+```
+
+**Plugin B: Enchantments (Modifier System)**
+
+```rust
+use ferrumc_plugin_api::*;
+
+#[derive(Default)]
+pub struct EnchantmentPlugin;
+
+impl Plugin for EnchantmentPlugin {
+    fn name(&self) -> &'static str { "enchantments" }
+    fn version(&self) -> &'static str { "1.0.0" }
+    fn priority(&self) -> i32 { 40 }  // Medium priority - modifies damage
+    
+    fn dependencies(&self) -> Vec<&'static str> {
+        vec!["fall_damage"]  // Needs fall_damage plugin
+    }
+    
+    fn build(&self, ctx: &mut PluginContext<'_>) {
+        ctx.add_tick_system(apply_feather_falling);
+        ctx.add_tick_system(apply_protection);
+    }
+}
+
+fn apply_feather_falling(
+    mut events: EventReader<DealDamageEvent>,
+    query: Query<&Inventory>,
+) {
+    for event in events.read() {
+        if event.damage_type != DamageType::Fall {
+            continue;
+        }
+        
+        let Ok(inventory) = query.get(event.player) else { continue };
+        let level = inventory.get_boots_enchantment("feather_falling");
+        
+        if level > 0 {
+            // Reduce fall damage by 12% per level
+            event.modify_amount(|damage| {
+                damage * (1.0 - 0.12 * level as f32)
+            });
+        }
+    }
+}
+
+fn apply_protection(
+    mut events: EventReader<DealDamageEvent>,
+    query: Query<&Inventory>,
+) {
+    for event in events.read() {
+        let Ok(inventory) = query.get(event.player) else { continue };
+        let total_protection = inventory.total_protection_level();
+        
+        if total_protection > 0 {
+            // Reduce all damage by 4% per level
+            event.modify_amount(|damage| {
+                damage * (1.0 - 0.04 * total_protection as f32)
+            });
+        }
+    }
+}
+```
+
+**Plugin C: Health System (Final Handler)**
+
+```rust
+use ferrumc_plugin_api::*;
+
+#[derive(Component)]
+pub struct Health {
+    pub current: f32,
+    pub max: f32,
+}
+
+#[derive(Default)]
+pub struct HealthPlugin;
+
+impl Plugin for HealthPlugin {
+    fn name(&self) -> &'static str { "health" }
+    fn version(&self) -> &'static str { "1.0.0" }
+    fn priority(&self) -> i32 { 0 }  // Low priority - final processing
+    
+    fn build(&self, ctx: &mut PluginContext<'_>) {
+        ctx.add_tick_system(apply_damage);
+        ctx.add_tick_system(check_death);
+    }
+}
+
+fn apply_damage(
+    mut events: EventReader<DealDamageEvent>,
+    mut query: Query<&mut Health>,
+) {
+    for event in events.read() {
+        if event.is_cancelled() {
+            continue;
+        }
+        
+        let final_damage = event.get_amount();
+        
+        if let Ok(mut health) = query.get_mut(event.player) {
+            health.current = (health.current - final_damage).max(0.0);
+        }
+    }
+}
+```
+
+**Execution Flow:**
+
+```
+Player lands (distance: 10 blocks)
+    ↓
+calculate_fall_damage (priority 50)
+    → Emits: DealDamageEvent { amount: Cell(7.0), type: Fall }
+    ↓
+apply_feather_falling (priority 40)
+    → Feather Falling IV: amount = 7.0 * (1 - 0.48) = 3.64
+    ↓
+apply_protection (priority 40)
+    → Protection IV: amount = 3.64 * (1 - 0.16) = 3.06
+    ↓
+apply_damage (priority 0)
+    → Final damage: 3.06 hearts
+```
+
+### Pattern Summary
+
+| Pattern | Use Case | Example |
+|---------|----------|---------|
+| **Modifiable Events** | Multiple plugins modify same value | Damage calculation with modifiers |
+| **Plugin Priority** | Control execution order | Base calculation → Modifiers → Final handler |
+| **Resource Sharing** | Shared configuration/state | Config resources, cooldown trackers |
+| **Custom Events** | Plugin-to-plugin communication | Request/response patterns |
+| **Dependencies** | Ensure load order | Enchantment plugin needs fall damage plugin |
+| **Cancellable Events** | Veto operations | Anti-cheat cancels suspicious actions |
+
+### Best Practices for Multi-Plugin Systems
+
+1. **Design for extension**: Use `Cell<T>` for values other plugins might modify
+2. **Document contracts**: Clearly specify which plugins read/modify events
+3. **Declare dependencies**: Use `dependencies()` to ensure correct load order
+4. **Use priority wisely**: Base systems = high priority, modifiers = medium, handlers = low
+5. **Provide resources**: Share configuration via ECS resources
+6. **Test independently**: Each plugin should work with/without others
 
 ---
 

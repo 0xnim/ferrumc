@@ -84,6 +84,31 @@ pub trait Plugin: Send + Sync + 'static {
         vec![]
     }
 
+    /// Execution priority for system registration order.
+    ///
+    /// Higher priority plugins register systems first, meaning their systems
+    /// will run earlier in the tick when reading the same events.
+    ///
+    /// Use this to control the order of event processing when multiple plugins
+    /// read/modify the same events.
+    ///
+    /// **Priority Guidelines:**
+    /// - Default: 0 (final processing, handlers)
+    /// - Base Systems: 50+ (calculate base values, emit events)
+    /// - Modifiers: 30-49 (modify events emitted by base systems)
+    /// - Anti-cheat/Validation: 100+ (run before everything else)
+    /// - Logging/Monitoring: -100 (run after everything else)
+    ///
+    /// Example:
+    /// ```rust,no_run
+    /// fn priority(&self) -> i32 {
+    ///     50  // Base damage calculation runs early
+    /// }
+    /// ```
+    fn priority(&self) -> i32 {
+        0  // Default priority
+    }
+
     /// Build the plugin - called during server initialization.
     ///
     /// This is where you register:

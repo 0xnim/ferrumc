@@ -57,7 +57,7 @@ impl PluginRegistry {
         Ok(())
     }
 
-    /// Sort plugins by dependencies
+    /// Sort plugins by dependencies, then by priority
     fn sort_by_dependencies(&mut self) -> Result<(), PluginError> {
         // Create dependency graph
         let mut graph: HashMap<&str, Vec<&str>> = HashMap::new();
@@ -113,6 +113,22 @@ impl PluginRegistry {
 
         self.plugins
             .sort_by_key(|p| name_to_index.get(p.name()).copied().unwrap_or(usize::MAX));
+
+        // Within dependency groups, sort by priority (higher priority first)
+        // This ensures systems from higher priority plugins register first
+        self.plugins.sort_by(|a, b| {
+            let dep_order_a = name_to_index.get(a.name()).copied().unwrap_or(usize::MAX);
+            let dep_order_b = name_to_index.get(b.name()).copied().unwrap_or(usize::MAX);
+            
+            // First sort by dependency order
+            match dep_order_a.cmp(&dep_order_b) {
+                std::cmp::Ordering::Equal => {
+                    // If same dependency level, sort by priority (higher first)
+                    b.priority().cmp(&a.priority())
+                }
+                other => other,
+            }
+        });
 
         Ok(())
     }
@@ -208,6 +224,7 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     registry.register::<ferrumc_plugin_blocks::BlocksPlugin>();
     registry.register::<ferrumc_plugin_chat::ChatPlugin>();
     registry.register::<ferrumc_plugin_default_commands::DefaultCommandsPlugin>();
+    registry.register::<ferrumc_plugin_inventory::InventoryPlugin>();
     
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();

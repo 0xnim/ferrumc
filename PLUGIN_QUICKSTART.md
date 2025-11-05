@@ -428,6 +428,104 @@ fn plugin_b_system(mut events: EventReader<CustomEvent>) {
 }
 ```
 
+### Pattern 6: Modifiable Events (Multi-Plugin Coordination)
+
+When multiple plugins need to modify the same value, use thread-safe interior mutability:
+
+```rust
+use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+#[derive(Event, Clone)]
+pub struct DealDamageEvent {
+    pub player: Entity,
+    pub amount: Arc<RwLock<f32>>,  // ← Thread-safe mutable value
+    pub damage_type: DamageType,
+}
+
+impl DealDamageEvent {
+    pub fn modify_amount<F>(&self, f: F) 
+    where F: FnOnce(f32) -> f32 
+    {
+        if let Ok(mut amount) = self.amount.write() {
+            *amount = f(*amount);
+        }
+    }
+    
+    pub fn get_amount(&self) -> f32 {
+        self.amount.read().map(|a| *a).unwrap_or(0.0)
+    }
+}
+
+// Plugin A: Calculate base damage
+fn calculate_damage(world: &mut World, player: Entity) {
+    world.send_event(DealDamageEvent::new(
+        player,
+        10.0,
+        DamageType::Fall,
+    ));
+}
+
+// Plugin B: Modify damage (runs after A due to priority)
+fn apply_feather_falling(mut events: EventReader<DealDamageEvent>) {
+    for event in events.read() {
+        event.modify_amount(|damage| damage * 0.5);  // 50% reduction
+    }
+}
+
+// Plugin C: Apply final damage
+fn apply_damage(mut events: EventReader<DealDamageEvent>) {
+    for event in events.read() {
+        let final_damage = event.get_amount();  // Gets modified value
+        // Apply to health...
+    }
+}
+```
+
+**Use plugin priority to control execution order:**
+```rust
+impl Plugin for FallDamagePlugin {
+    fn priority(&self) -> i32 { 50 }  // Runs first
+}
+
+impl Plugin for EnchantmentPlugin {
+    fn priority(&self) -> i32 { 40 }  // Runs second (modifies)
+}
+
+impl Plugin for HealthPlugin {
+    fn priority(&self) -> i32 { 0 }   // Runs last (applies)
+}
+```
+
+### Pattern 7: Resource Sharing
+
+Plugins can share data via ECS resources:
+
+```rust
+// Plugin A provides resource
+#[derive(Resource)]
+pub struct FallDamageConfig {
+    pub multiplier: f32,
+}
+
+impl Plugin for PluginA {
+    fn build(&self, ctx: &mut PluginContext<'_>) {
+        ctx.insert_resource(FallDamageConfig { multiplier: 1.0 });
+    }
+}
+
+// Plugin B uses resource
+impl Plugin for PluginB {
+    fn dependencies(&self) -> Vec<&'static str> {
+        vec!["plugin_a"]  // Ensure PluginA loads first
+    }
+}
+
+fn use_resource(config: Res<FallDamageConfig>) {
+    let multiplier = config.multiplier;
+}
+```
+
 ---
 
 ## Plugin Lifecycle
