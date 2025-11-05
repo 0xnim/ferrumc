@@ -8,62 +8,29 @@ use crate::events::{
 };
 use ferrumc_net_codec::net_types::var_int::VarInt;
 
-/// Plugin API for block operations
+/// Plugin API for requesting block operations (Plugin → Core direction)
 ///
-/// This is a system parameter that plugins use to interact with blocks
-/// without knowing about the underlying network implementation.
+/// This SystemParam is used by plugins to request block operations.
+/// Core systems handle the actual I/O (chunk loading/saving).
 ///
 /// # Example
 ///
 /// ```rust,no_run
 /// use bevy_ecs::prelude::*;
-/// use ferrumc_block_api::BlockAPI;
+/// use ferrumc_block_api::BlockRequests;
 ///
-/// fn my_system(mut blocks: BlockAPI) {
-///     // Update a block and broadcast to all players
-///     blocks.broadcast_block_update(position, block_state);
+/// fn my_system(mut blocks: BlockRequests) {
+///     // Request a block placement (core handles I/O)
+///     blocks.place_block(player, position, block_state, sequence);
 /// }
 /// ```
 #[derive(SystemParam)]
-pub struct BlockAPI<'w> {
-    update_events: EventWriter<'w, SendBlockUpdateRequest>,
-    ack_events: EventWriter<'w, SendBlockChangeAckRequest>,
+pub struct BlockRequests<'w> {
     place_events: EventWriter<'w, PlaceBlockRequest>,
     break_events: EventWriter<'w, BreakBlockRequest>,
 }
 
-impl<'w> BlockAPI<'w> {
-    /// Broadcast a block update to all players
-    pub fn broadcast_block_update(&mut self, position: NetworkPosition, block: BlockStateId) {
-        self.update_events.write(SendBlockUpdateRequest {
-            position,
-            block,
-            exclude_player: None,
-        });
-    }
-
-    /// Broadcast a block update to all players except one
-    pub fn broadcast_block_update_except(
-        &mut self,
-        position: NetworkPosition,
-        block: BlockStateId,
-        exclude_player: Entity,
-    ) {
-        self.update_events.write(SendBlockUpdateRequest {
-            position,
-            block,
-            exclude_player: Some(exclude_player),
-        });
-    }
-
-    /// Send a block change acknowledgment to a player
-    pub fn send_ack(&mut self, player: Entity, sequence: VarInt) {
-        self.ack_events.write(SendBlockChangeAckRequest {
-            player,
-            sequence,
-        });
-    }
-
+impl<'w> BlockRequests<'w> {
     /// Request to place a block (core handles chunk I/O)
     ///
     /// This should be called after validation logic in plugins.
@@ -97,3 +64,63 @@ impl<'w> BlockAPI<'w> {
         });
     }
 }
+
+/// Core API for broadcasting block changes (Core → Network direction)
+///
+/// This SystemParam is used by core systems to broadcast block updates
+/// and send acknowledgments to players.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use bevy_ecs::prelude::*;
+/// use ferrumc_block_api::BlockBroadcasts;
+///
+/// fn my_system(mut blocks: BlockBroadcasts) {
+///     // Broadcast a block update to all players
+///     blocks.broadcast_block_update(position, block_state);
+/// }
+/// ```
+#[derive(SystemParam)]
+pub struct BlockBroadcasts<'w> {
+    update_events: EventWriter<'w, SendBlockUpdateRequest>,
+    ack_events: EventWriter<'w, SendBlockChangeAckRequest>,
+}
+
+impl<'w> BlockBroadcasts<'w> {
+    /// Broadcast a block update to all players
+    pub fn broadcast_block_update(&mut self, position: NetworkPosition, block: BlockStateId) {
+        self.update_events.write(SendBlockUpdateRequest {
+            position,
+            block,
+            exclude_player: None,
+        });
+    }
+
+    /// Broadcast a block update to all players except one
+    pub fn broadcast_block_update_except(
+        &mut self,
+        position: NetworkPosition,
+        block: BlockStateId,
+        exclude_player: Entity,
+    ) {
+        self.update_events.write(SendBlockUpdateRequest {
+            position,
+            block,
+            exclude_player: Some(exclude_player),
+        });
+    }
+
+    /// Send a block change acknowledgment to a player
+    pub fn send_ack(&mut self, player: Entity, sequence: VarInt) {
+        self.ack_events.write(SendBlockChangeAckRequest {
+            player,
+            sequence,
+        });
+    }
+}
+
+/// Backward compatibility alias
+/// 
+/// Plugins should use BlockRequests for requesting block operations.
+pub type BlockAPI<'w> = BlockRequests<'w>;
