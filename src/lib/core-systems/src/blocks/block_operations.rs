@@ -4,7 +4,9 @@
 //! that plugins should not directly access.
 
 use bevy_ecs::prelude::*;
-use ferrumc_block_api::{BlockAPI, BreakBlockRequest, PlaceBlockRequest};
+use ferrumc_block_api::{
+    BreakBlockRequest, PlaceBlockRequest, SendBlockChangeAckRequest, SendBlockUpdateRequest,
+};
 use ferrumc_state::GlobalStateResource;
 use ferrumc_world::block_state_id::BlockStateId;
 use std::sync::Arc;
@@ -21,7 +23,8 @@ use tracing::{debug, error};
 /// Plugins should never do this directly!
 pub fn handle_place_block_requests(
     mut events: EventReader<PlaceBlockRequest>,
-    mut blocks: BlockAPI,
+    mut ack_events: EventWriter<SendBlockChangeAckRequest>,
+    mut update_events: EventWriter<SendBlockUpdateRequest>,
     state: Res<GlobalStateResource>,
 ) {
     for request in events.read() {
@@ -59,10 +62,17 @@ pub fn handle_place_block_requests(
         }
 
         // Send acknowledgment to the player
-        blocks.send_ack(request.player, request.sequence);
+        ack_events.write(SendBlockChangeAckRequest {
+            player: request.player,
+            sequence: request.sequence,
+        });
 
         // Broadcast block update to all players
-        blocks.broadcast_block_update(request.position.clone(), request.block);
+        update_events.write(SendBlockUpdateRequest {
+            position: request.position.clone(),
+            block: request.block,
+            exclude_player: None,
+        });
     }
 }
 
@@ -77,7 +87,8 @@ pub fn handle_place_block_requests(
 /// Plugins should never do this directly!
 pub fn handle_break_block_requests(
     mut events: EventReader<BreakBlockRequest>,
-    mut blocks: BlockAPI,
+    mut ack_events: EventWriter<SendBlockChangeAckRequest>,
+    mut update_events: EventWriter<SendBlockUpdateRequest>,
     state: Res<GlobalStateResource>,
 ) {
     for request in events.read() {
@@ -120,9 +131,16 @@ pub fn handle_break_block_requests(
         }
 
         // Send acknowledgment to the player
-        blocks.send_ack(request.player, request.sequence);
+        ack_events.write(SendBlockChangeAckRequest {
+            player: request.player,
+            sequence: request.sequence,
+        });
 
         // Broadcast block update to all players (set to air)
-        blocks.broadcast_block_update(request.position.clone(), BlockStateId::default());
+        update_events.write(SendBlockUpdateRequest {
+            position: request.position.clone(),
+            block: BlockStateId::default(),
+            exclude_player: None,
+        });
     }
 }

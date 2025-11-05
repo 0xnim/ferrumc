@@ -53,7 +53,15 @@ impl Plugin for BlocksPlugin {
         info!("Loading blocks plugin");
 
         // Register events from block API
-        register_events!(ctx, BlockPlaceAttemptEvent, BlockBreakAttemptEvent);
+        register_events!(
+            ctx,
+            BlockPlaceAttemptEvent,
+            BlockBreakAttemptEvent,
+            ferrumc_block_api::PlaceBlockRequest,
+            ferrumc_block_api::BreakBlockRequest,
+            ferrumc_block_api::SendBlockUpdateRequest,
+            ferrumc_block_api::SendBlockChangeAckRequest
+        );
 
         // Register our gameplay logic systems (validation only - no I/O!)
         ctx.add_tick_system(handle_block_placement);
