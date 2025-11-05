@@ -1,0 +1,12 @@
+[package]
+name = "ferrumc-inventory-api"
+version = "0.1.0"
+edition = "2021"
+description = "Domain API for inventory system in FerrumC"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+ferrumc-inventories = { workspace = true }
+
+[lints]
+workspace = true

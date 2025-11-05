@@ -232,9 +232,9 @@ fn handle_block_breaking(
 
         // Calculate relative position within chunk
         let (relative_x, relative_y, relative_z) = (
-            event.position.x.abs() % 16,
+            event.position.x & 0xF,
             event.position.y as i32,
-            event.position.z.abs() % 16,
+            event.position.z & 0xF,
         );
 
         // Set block to air

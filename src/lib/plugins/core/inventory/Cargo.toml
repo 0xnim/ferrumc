@@ -1,0 +1,23 @@
+[package]
+name = "ferrumc-plugin-inventory"
+version = "0.1.0"
+edition = "2021"
+description = "Inventory gameplay plugin for FerrumC"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+tracing = { workspace = true }
+
+# Core infrastructure
+ferrumc-core = { workspace = true }
+ferrumc-state = { workspace = true }
+ferrumc-inventories = { workspace = true }
+
+# Domain API
+ferrumc-inventory-api = { workspace = true }
+
+# Plugin framework
+ferrumc-plugin-api = { workspace = true }
+
+[lints]
+workspace = true

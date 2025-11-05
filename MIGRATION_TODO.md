@@ -27,11 +27,20 @@ This document tracks what features need to be migrated from the binary to the pl
   - Bridge for legacy commands (echo, nested)
   - mq queue → chat API conversion
 
+### 4. Inventory System
+- **API:** `ferrumc-inventory-api`
+- **Core Systems:** `ferrumc-core-systems/inventory`
+- **Plugin:** `ferrumc-plugin-inventory`
+- **Features:**
+  - Creative mode inventory management
+  - Hotbar slot selection (0-8)
+  - Inventory validation and updates
+
 ---
 
 ## 🚧 High Priority - Game Logic (Should be Plugins)
 
-### 4. Block System ⭐ HIGHEST PRIORITY
+### 5. Block System ⭐ HIGHEST PRIORITY
 **Current Location:** `src/bin/src/packet_handlers/play_packets/`
 - `place_block.rs` - Block placement with collision detection
 - `player_action.rs` - Block breaking
@@ -53,24 +62,6 @@ This document tracks what features need to be migrated from the binary to the pl
 - Receiving PlaceBlock/PlayerAction packets
 - Sending BlockUpdate/BlockChangeAck packets
 - World chunk loading/saving
-
----
-
-### 5. Inventory System
-**Current Location:** `src/bin/src/packet_handlers/play_packets/`
-- `set_creative_mode_slot.rs` - Creative inventory management
-- `set_held_item.rs` - Hotbar slot selection
-
-**Needs:**
-- ✅ `ferrumc-inventory-api` - InventoryAPI trait, events
-- ✅ `ferrumc-core-systems/inventory` - Packet handlers
-- ✅ `ferrumc-plugin-inventory` - Inventory rules and validation
-
-**Game Logic:**
-- Creative mode slot validation
-- Hotbar slot bounds checking (0-8)
-- Inventory update logic
-- Item count validation
 
 ---
 
@@ -174,8 +165,8 @@ This document tracks what features need to be migrated from the binary to the pl
 
 ## 🎯 Recommended Migration Order
 
-1. **Block System** (High value, clear boundaries, good learning example)
-2. **Inventory System** (Related to blocks, simpler logic)
+1. ✅ **Block System** (High value, clear boundaries, good learning example)
+2. ✅ **Inventory System** (Related to blocks, simpler logic)
 3. **Movement System** (Complex but critical for gameplay)
 4. **Entity Tracking** (Enables more features like mobs, items)
 5. **System Messages** (Simple, good for practice)

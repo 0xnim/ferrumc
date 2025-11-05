@@ -177,6 +177,8 @@ fn build_timed_scheduler_base() -> Scheduler {
         s.add_systems(ferrumc_core_systems::blocks::handle_place_block_packets);
         s.add_systems(ferrumc_core_systems::blocks::handle_player_action_packets);
         s.add_systems(ferrumc_core_systems::chat::handle_chat_packets);
+        s.add_systems(ferrumc_core_systems::inventory::handle_set_creative_slot_packets);
+        s.add_systems(ferrumc_core_systems::inventory::handle_set_held_item_packets);
         
         // Core I/O layer: event → packet broadcasters
         s.add_systems(ferrumc_core_systems::animations::broadcast_animations);

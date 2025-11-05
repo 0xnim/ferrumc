@@ -252,54 +252,61 @@ impl Chunk {
         }
 
         // Do different things based on the palette type
-        match &mut section.block_states.block_data {
-            PaletteType::Single(_val) => {
-                panic!("Single palette type should have been converted to indirect palette type");
+        if matches!(section.block_states.block_data, PaletteType::Single(_)) {
+            panic!("Single palette type should have been converted to indirect palette type");
+        }
+
+        // Update block counts
+        match section.block_states.block_counts.entry(old_block) {
+            Entry::Occupied(mut occ_entry) => {
+                let count = occ_entry.get_mut();
+                if *count <= 0 {
+                    return match old_block.to_block_data() {
+                        Some(block_data) => {
+                            error!("Block count is zero for block: {:?}", block_data);
+                            Err(WorldError::InvalidBlockStateData(format!(
+                                "Block count is zero for block: {block_data:?}"
+                            )))
+                        }
+                        None => {
+                            error!(
+                                "Block count is zero for unknown block state ID: {}",
+                                old_block.0
+                            );
+                            Err(WorldError::InvalidBlockStateId(old_block.0))
+                        }
+                    };
+                }
+                *count -= 1;
             }
+            Entry::Vacant(empty_entry) => {
+                warn!("Block not found in block counts: {:?}", old_block);
+                empty_entry.insert(0);
+            }
+        }
+        
+        // Add new block
+        if let Some(e) = section.block_states.block_counts.get(&block) {
+            section.block_states.block_counts.insert(block, e + 1);
+        } else {
+            section.block_states.block_counts.insert(block, 1);
+        }
+
+        // Check if we need to resize before modifying
+        if let PaletteType::Indirect { bits_per_block, palette, .. } = &section.block_states.block_data {
+            let required_bits = std::cmp::max((palette.len() as f32).log2().ceil() as u8, 4);
+            if *bits_per_block != required_bits {
+                section.block_states.resize(required_bits as usize)?;
+            }
+        }
+
+        // Now do the actual block set
+        match &mut section.block_states.block_data {
             PaletteType::Indirect {
                 bits_per_block,
                 data,
                 palette,
             } => {
-                // debug!("Indirect mode");
-                match section.block_states.block_counts.entry(old_block) {
-                    Entry::Occupied(mut occ_entry) => {
-                        let count = occ_entry.get_mut();
-                        if *count <= 0 {
-                            return match old_block.to_block_data() {
-                                Some(block_data) => {
-                                    error!("Block count is zero for block: {:?}", block_data);
-                                    Err(WorldError::InvalidBlockStateData(format!(
-                                        "Block count is zero for block: {block_data:?}"
-                                    )))
-                                }
-                                None => {
-                                    error!(
-                                        "Block count is zero for unknown block state ID: {}",
-                                        old_block.0
-                                    );
-                                    Err(WorldError::InvalidBlockStateId(old_block.0))
-                                }
-                            };
-                        }
-                        *count -= 1;
-                    }
-                    Entry::Vacant(empty_entry) => {
-                        warn!("Block not found in block counts: {:?}", old_block);
-                        empty_entry.insert(0);
-                    }
-                }
-                // Add new block
-                if let Some(e) = section.block_states.block_counts.get(&block) {
-                    section.block_states.block_counts.insert(block, e + 1);
-                } else {
-                    // debug!("Adding block to block counts");
-                    section.block_states.block_counts.insert(block, 1);
-                }
-                // let required_bits = max((palette.len() as f32).log2().ceil() as u8, 4);
-                // if *bits_per_block != required_bits {
-                //     section.block_states.resize(required_bits as usize)?;
-                // }
                 // Get block index
                 let block_palette_index = palette
                     .iter()
@@ -313,7 +320,7 @@ impl Chunk {
                 // Set block
                 let blocks_per_i64 = (64f64 / *bits_per_block as f64).floor() as usize;
                 let index =
-                    ((y.abs() & 0xf) * 256 + (z.abs() & 0xf) * 16 + (x.abs() & 0xf)) as usize;
+                    ((y & 0xf) * 256 + (z & 0xf) * 16 + (x & 0xf)) as usize;
                 let i64_index = index / blocks_per_i64;
                 let packed_u64 =
                     data.get_mut(i64_index)
@@ -335,6 +342,7 @@ impl Chunk {
             PaletteType::Direct { .. } => {
                 todo!("Implement direct palette for set_block");
             }
+            _ => unreachable!(),
         }
 
         section.block_states.non_air_blocks = section
@@ -348,9 +356,7 @@ impl Chunk {
             .map(|(_, count)| *count as u16)
             .sum();
 
-        self.sections
-            .iter_mut()
-            .for_each(|section| section.optimise().unwrap());
+        section.optimise()?;
         Ok(())
     }
 
@@ -501,11 +507,12 @@ impl Section {
                         }
                     }
                 }
+                remove_indexes.sort_by(|a, b| b.cmp(a));
                 for index in remove_indexes {
                     // Decrement any data entries that are higher than the removed index
                     for data_point in &mut *data {
                         let mut i = 0;
-                        while (i + *bits_per_block as usize) < 64 {
+                        while (i + *bits_per_block as usize) <= 64 {
                             let block_index =
                                 ferrumc_general_purpose::data_packing::u32::read_nbit_u32(
                                     data_point,
@@ -523,6 +530,7 @@ impl Section {
                             i += *bits_per_block as usize;
                         }
                     }
+                    palette.remove(index);
                 }
 
                 {

@@ -38,6 +38,7 @@ ferrumc-plugin-animations = { path = "../lib/plugins/core/animations" }
 ferrumc-plugin-blocks = { path = "../lib/plugins/core/blocks" }
 ferrumc-plugin-chat = { path = "../lib/plugins/core/chat" }
 ferrumc-plugin-default-commands = { path = "../lib/plugins/core/default-commands" }
+ferrumc-plugin-inventory = { path = "../lib/plugins/core/inventory" }
 once_cell = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }

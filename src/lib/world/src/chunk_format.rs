@@ -136,7 +136,7 @@ impl VanillaChunk {
             let mut block_counts = HashMap::new();
             for chunk in &raw_block_data {
                 let mut i = 0;
-                while i + bits_per_block < 64 {
+                while i + bits_per_block <= 64 {
                     let palette_index = read_nbit_i32(chunk, bits_per_block as usize, i as u32)?;
                     let block = match palette.get(palette_index as usize) {
                         Some(block) => block.to_block_state_id(),
@@ -149,7 +149,7 @@ impl VanillaChunk {
                     if let Some(count) = block_counts.get_mut(&block) {
                         *count += 1;
                     } else {
-                        block_counts.insert(block, 0);
+                        block_counts.insert(block, 1);
                     }
 
                     i += bits_per_block;

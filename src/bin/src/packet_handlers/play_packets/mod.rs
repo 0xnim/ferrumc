@@ -22,10 +22,4 @@ pub fn register_packet_handlers(schedule: &mut Schedule) {
     schedule.add_systems(player_loaded::handle);
     schedule.add_systems(command::handle);
     schedule.add_systems(command_suggestions::handle);
-    schedule.add_systems(set_creative_mode_slot::handle);
-    schedule.add_systems(set_held_item::handle);
 }
-
-pub mod set_creative_mode_slot;
-
-pub mod set_held_item;
