@@ -1,0 +1,13 @@
+[package]
+name = "ferrumc-plugin-inventory-sync"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ferrumc-plugin-api = { path = "../../../plugin-api" }
+ferrumc-inventory-api = { path = "../../../apis/inventory-api" }
+ferrumc-inventories = { path = "../../../inventories" }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

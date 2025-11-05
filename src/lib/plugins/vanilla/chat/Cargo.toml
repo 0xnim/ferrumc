@@ -1,0 +1,13 @@
+[package]
+name = "ferrumc-plugin-vanilla-chat"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+ferrumc-plugin-api = { path = "../../../plugin-api" }
+ferrumc-chat-api = { path = "../../../apis/chat-api" }
+ferrumc-text = { path = "../../../text" }
+tracing = { workspace = true }
+
+[lints]
+workspace = true
