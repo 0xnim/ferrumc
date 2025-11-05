@@ -56,6 +56,7 @@ members = [
     "src/lib/plugins/vanilla/chat",
     "src/lib/plugins/vanilla/animations",
     "src/lib/plugins/vanilla/join-leave",
+    "src/lib/plugins/vanilla/spawn-safety",
     "src/lib/plugins/test_violations",
 ]
 

@@ -239,6 +239,7 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     registry.register::<ferrumc_plugin_vanilla_chat::VanillaChatPlugin>();
     registry.register::<ferrumc_plugin_vanilla_animations::VanillaAnimationsPlugin>();
     registry.register::<ferrumc_plugin_vanilla_join_leave::VanillaJoinLeavePlugin>();
+    registry.register::<ferrumc_plugin_vanilla_spawn_safety::VanillaSpawnSafetyPlugin>();
     
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();

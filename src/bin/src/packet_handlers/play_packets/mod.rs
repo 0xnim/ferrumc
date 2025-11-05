@@ -5,7 +5,6 @@ mod command;
 mod command_suggestions;
 mod confirm_player_teleport;
 mod keep_alive;
-mod player_loaded;
 
 pub fn register_packet_handlers(schedule: &mut Schedule) {
     // Added separately so if we mess up the signature of one of the systems we can know exactly
@@ -13,7 +12,6 @@ pub fn register_packet_handlers(schedule: &mut Schedule) {
     schedule.add_systems(chunk_batch_ack::handle);
     schedule.add_systems(confirm_player_teleport::handle);
     schedule.add_systems(keep_alive::handle);
-    schedule.add_systems(player_loaded::handle);
     schedule.add_systems(command::handle);
     schedule.add_systems(command_suggestions::handle);
 }

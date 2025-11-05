@@ -48,6 +48,7 @@ ferrumc-plugin-vanilla-blocks = { path = "../lib/plugins/vanilla/blocks" }
 ferrumc-plugin-vanilla-chat = { path = "../lib/plugins/vanilla/chat" }
 ferrumc-plugin-vanilla-animations = { path = "../lib/plugins/vanilla/animations" }
 ferrumc-plugin-vanilla-join-leave = { path = "../lib/plugins/vanilla/join-leave" }
+ferrumc-plugin-vanilla-spawn-safety = { path = "../lib/plugins/vanilla/spawn-safety" }
 once_cell = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }

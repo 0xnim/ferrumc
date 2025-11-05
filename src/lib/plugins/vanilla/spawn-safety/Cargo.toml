@@ -1,0 +1,15 @@
+[package]
+name = "ferrumc-plugin-vanilla-spawn-safety"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+ferrumc-plugin-api = { path = "../../../plugin-api" }
+ferrumc-join-leave-api = { path = "../../../apis/join-leave-api" }
+ferrumc-world = { workspace = true }
+ferrumc-net = { workspace = true }
+bevy_ecs = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true
