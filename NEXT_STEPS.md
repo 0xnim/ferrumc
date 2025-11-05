@@ -12,12 +12,14 @@
 
 1. **[AGENTS.md](AGENTS.md)** - Commands, conventions, quick reference (5 min)
 2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture overview (15 min)
-3. **[PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md)** - **Critical:** Understand core vs plugins vs APIs (10 min)
-4. **[PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md)** - **NEW!** Complete plugin architecture (30 min)
+3. **[PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md)** - **Critical:** Core vs plugins vs APIs (10 min)
+4. **[PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md)** - Complete plugin architecture + coordination (30 min)
 5. **[PLUGIN_QUICKSTART.md](PLUGIN_QUICKSTART.md)** - How to create plugins (15 min)
-6. **[FEATURES.md](FEATURES.md)** - What's implemented, what's not (10 min)
+6. **[PLUGIN_REVIEW.md](PLUGIN_REVIEW.md)** - **NEW!** Current plugin compliance analysis (10 min)
+7. **[NEXT_MIGRATION.md](NEXT_MIGRATION.md)** - **NEW!** Next migration plan (10 min)
+8. **[FEATURES.md](FEATURES.md)** - What's implemented, what's not (10 min)
 
-**Total reading time:** ~1.5 hours to fully understand the codebase and architecture
+**Total reading time:** ~2 hours to fully understand the codebase and current state
 
 ---
 
@@ -34,15 +36,22 @@
 - ✅ NBT/Anvil parsing (custom, optimized)
 - ✅ Configuration system
 - ✅ Command infrastructure
-- ✅ **Plugin system (fully implemented)**
+- ✅ **Plugin system (fully implemented with priority & coordination)**
 
-**Basic Gameplay (Partial):**
-- 🚧 Player connections/spawning
-- 🚧 Player movement (works but not synced to other players)
-- 🚧 Block placement/breaking (works but messy code location)
-- 🚧 Chat (works but not broadcast)
-- 🚧 Commands (infrastructure works, few commands)
-- 🚧 Inventory (basic)
+**Migrated to Plugins:**
+- ✅ Animations (arm swings, poses) - `ferrumc-plugin-animations`
+- ✅ Block placement/breaking - `ferrumc-plugin-blocks`
+- ✅ Chat formatting/broadcasting - `ferrumc-plugin-chat`
+- ✅ Inventory management - `ferrumc-plugin-inventory`
+- ✅ Default commands - `ferrumc-plugin-default-commands`
+
+**Basic Gameplay:**
+- ✅ Player connections/spawning
+- 🚧 Player movement (needs migration to plugin + entity sync)
+- ✅ Block placement/breaking (migrated, no I/O violations)
+- ✅ Chat broadcasting (migrated to plugin architecture)
+- ✅ Commands (infrastructure + bridge plugin)
+- ✅ Inventory (migrated to plugin architecture)
 
 ### ❌ What's Missing (High Priority)
 
@@ -94,202 +103,63 @@ Read [PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md) for detailed explanation.
 
 ---
 
-## 🚀 Recommended Development Path
+## 🚀 What's Next - Recommended Development Path
 
-### NEW ARCHITECTURE: Domain APIs + Plugins
+### ✅ Completed: Domain API Architecture
 
-The new architecture requires building in three phases:
+The three-layer architecture (Core ← APIs ← Plugins) is **IMPLEMENTED**:
 
-1. **Phase 1:** Create domain API crates (events, traits, types)
-2. **Phase 2:** Move packet handling to core, implement event converters
-3. **Phase 3:** Create plugins that use domain APIs
+**✅ Completed APIs:**
+- `animation-api` - Entity animations (arm swings, poses)
+- `block-api` - Block placement/breaking  
+- `chat-api` - Chat messaging
+- `inventory-api` - Inventory management
 
-### Path A: Implement Domain API Architecture (RECOMMENDED)
+**✅ Completed Core-Systems:**
+- `animations/` - Packet handlers + broadcasters
+- `blocks/` - Packet handlers + broadcasters + block operations (chunk I/O)
+- `chat/` - Packet handlers + broadcasters
+- `inventory/` - Packet handlers
 
-**Goal:** Build the three-layer architecture (Core ← APIs ← Plugins)
+**✅ Completed Plugins:**
+- `animations` - Animation gameplay logic (priority: 50)
+- `blocks` - Block validation, NO I/O violations ✅ (priority: 40)
+- `chat` - Message formatting (priority: 30)
+- `inventory` - Inventory management, NO state violations ✅ (priority: 40)
+- `default-commands` - Legacy bridge (priority: 10)
+- `hello` - Example plugin (priority: 0)
 
-#### Phase 1: Create Domain API Crates (Week 1-2)
+**✅ Plugin System Features:**
+- Priority-based execution ordering
+- Multi-plugin coordination (Arc/RwLock modifiable events)
+- Resource sharing between plugins
+- Dependency management
+- Comprehensive documentation
 
-Create the API layer that bridges core and plugins.
-
-##### 1. Create `animation-api` crate (2-3 hours)
-**Why first:** Core gameplay, well-isolated
-
-**Steps:**
-```bash
-# Create API crate structure
-mkdir -p src/lib/apis/animation-api/src
-cd src/lib/apis/animation-api
-```
-
-**Create Cargo.toml:**
-```toml
-[package]
-name = "ferrumc-animation-api"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-bevy_ecs = { workspace = true }
-ferrumc-core = { workspace = true }
-
-[lints]
-workspace = true
-```
-
-**Create source files:**
-```rust
-// src/types.rs - Domain types
-#[derive(Debug, Clone, Copy)]
-pub enum AnimationType {
-    SwingMainArm, SwingOffhand, TakeDamage
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Hand { Main, Off }
-
-// src/events.rs - High-level events
-#[derive(Event, Clone)]
-pub struct PlayerSwingArmEvent {
-    pub player: Entity,
-    pub hand: Hand,
-}
-
-#[derive(Event, Clone)]
-pub struct PlayAnimationRequest {
-    pub entity: Entity,
-    pub animation: AnimationType,
-}
-
-// src/traits.rs - Plugin API
-pub trait AnimationAPI {
-    fn play_animation(&mut self, entity: Entity, animation: AnimationType);
-}
-
-impl AnimationAPI for World {
-    fn play_animation(&mut self, entity: Entity, animation: AnimationType) {
-        self.send_event(PlayAnimationRequest { entity, animation, broadcast_to_all: false });
-    }
-}
-```
-
-**Deliverable:** `ferrumc-animation-api` crate with events, types, and traits
-
-##### 2. Create `block-api` crate (3-4 hours)
-
-Similar structure to animation-api but for blocks:
-- Events: `BlockPlaceAttempt` (cancellable), `BlockBreakAttempt`, `BlockChanged`
-- Traits: `BlockAPI` (set_block, get_block, can_place_block)
-- Types: `BlockPos`, `BlockFace`, `BlockStateId`
-
-##### 3. Create `chat-api` crate (2-3 hours)
-
-- Events: `ChatMessageReceived`, `SendChatMessage`
-- Traits: `ChatAPI` (broadcast_message, send_to_player)
-- Types: `ChatMessage`, `ChatColor`
-
-##### 4. Create `movement-api` crate (2-3 hours)
-
-- Events: `PlayerMoveEvent`, `PlayerRotateEvent`
-- Traits: `MovementAPI` (teleport, set_velocity)
-- Types: `Position`, `Rotation`, `Velocity`
-
-**Total Phase 1:** ~10-15 hours to create API foundation
-
-#### Phase 2: Implement Core Handlers (Week 2-3)
-
-Move packet handling from binary to core, create event converters.
-
-##### 1. Create core packet → event converters (4-6 hours)
-
-**Create** `src/lib/core/src/animations/packet_handlers.rs`:
-```rust
-pub fn handle_swing_arm_packets(
-    packets: Res<SwingArmPacketReceiver>,
-    mut events: EventWriter<PlayerSwingArmEvent>,
-) {
-    for (packet, entity) in packets.0.try_iter() {
-        events.send(PlayerSwingArmEvent {
-            player: entity,
-            hand: if packet.hand == 0 { Hand::Main } else { Hand::Off },
-        });
-    }
-}
-```
-
-Repeat for: block packets, chat packets, movement packets
-
-##### 2. Create core event → packet broadcasters (4-6 hours)
-
-**Create** `src/lib/core/src/animations/broadcast.rs`:
-```rust
-pub fn broadcast_animations(
-    mut requests: EventReader<PlayAnimationRequest>,
-    query: Query<&PlayerIdentity>,
-    conn_query: Query<&StreamWriter>,
-) {
-    for req in requests.read() {
-        let packet = EntityAnimationPacket::new(/* ... */);
-        // Broadcast to network
-    }
-}
-```
-
-Repeat for: block updates, chat messages, movement sync
-
-##### 3. Register core systems in game_loop.rs (1-2 hours)
-
-```rust
-fn build_tick(s: &mut Schedule) {
-    // Core packet handlers (I/O layer)
-    s.add_systems(ferrumc_core::animations::packet_handlers::handle_swing_arm_packets);
-    s.add_systems(ferrumc_core::blocks::packet_handlers::handle_place_block_packets);
-    
-    // Core broadcasters (I/O layer)
-    s.add_systems(ferrumc_core::animations::broadcast::broadcast_animations);
-    s.add_systems(ferrumc_core::blocks::broadcast::broadcast_block_changes);
-}
-```
-
-**Total Phase 2:** ~10-15 hours to implement core I/O layer
-
-#### Phase 3: Create Plugins (Week 3-4)
-
-Build plugins that use domain APIs.
-
-##### 1. Create `animations` plugin (2-3 hours)
-
-Using `animation-api`, implement game logic:
-```rust
-fn handle_player_swings(
-    mut events: EventReader<PlayerSwingArmEvent>,
-    world: &mut World,
-) {
-    for event in events.read() {
-        world.play_animation(event.player, AnimationType::SwingMainArm);
-    }
-}
-```
-
-##### 2. Create `blocks` plugin (4-6 hours)
-
-Using `block-api`, implement placement/breaking rules
-
-##### 3. Create `chat` plugin (2-3 hours)
-
-Using `chat-api`, implement formatting and broadcasting
-
-##### 4. Create `movement` plugin (3-4 hours)
-
-Using `movement-api`, implement validation and syncing
-
-**Total Phase 3:** ~12-18 hours to create plugins
-
-**GRAND TOTAL:** ~30-45 hours to complete full migration
+**See:** [PLUGIN_REVIEW.md](PLUGIN_REVIEW.md) for compliance scorecard  
+**See:** [NEXT_MIGRATION.md](NEXT_MIGRATION.md) for migration plan
 
 ---
 
-### Path B: Implement New Features as Plugins (Priority Features)
+### Path A: Continue Plugin Migration (RECOMMENDED)
+
+**Goal:** Migrate remaining gameplay code from binary to plugins
+
+**⭐ NEXT: Movement Plugin** - See [NEXT_MIGRATION.md](NEXT_MIGRATION.md) for details
+
+**Remaining migrations:**
+1. **Movement System** (~430 lines) - Position/rotation updates, cross-chunk detection
+2. **Chunk Management** (~300 lines) - Chunk loading logic
+3. **System Messages** (~30 lines) - Join/leave messages
+
+**After these 3 migrations:**
+- Binary will have <100 lines of gameplay code (93% reduction!)
+- 9 plugins operational
+- All gameplay in plugins, all I/O in core
+
+---
+
+### Path B: Implement New Features as Plugins (High Impact)
 
 **Goal:** Add critical missing features using the plugin system
 
@@ -823,29 +693,47 @@ You'll know you're doing it right when:
 
 ## 🎯 TL;DR - Start Here
 
-1. **Read [PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md)** (10 min) - Understand the philosophy
-2. **Read [PLUGIN_QUICKSTART.md](PLUGIN_QUICKSTART.md)** (15 min) - Learn the API
-3. **Create `entity-tracking` plugin** (2-3 days) - Highest priority feature
-4. **Or migrate `blocks` plugin** (4-6 hours) - Simplest migration to learn the pattern
+1. **Read [PLUGIN_REVIEW.md](PLUGIN_REVIEW.md)** (10 min) - See current plugin compliance
+2. **Read [NEXT_MIGRATION.md](NEXT_MIGRATION.md)** (15 min) - Next migration plan
+3. **Migrate `movement` plugin** (1 week) - Next priority migration
+4. **Or create `entity-tracking` plugin** (2-3 days) - Highest impact new feature
 
 ---
 
 ## 📊 Current Plugin Status
 
-### Implemented Plugins
-- ✅ `hello` (example) - Demonstrates the system
+### ✅ Migrated Plugins (6 plugins, ~900 lines migrated)
 
-### Plugins to Create (Migration)
-- ⏳ `player-movement` - Move position/rotation handlers
-- ⏳ `blocks` - Move block placement/breaking
-- ⏳ `chunk-management` - Move chunk loading logic
-- ⏳ `chat` - Move chat broadcasting
-- ⏳ `inventory` - Wrap inventory lib + handlers
-- ⏳ `commands` - Wrap commands lib + handlers
+| Plugin | Priority | Lines | API | Status |
+|--------|----------|-------|-----|--------|
+| **animations** | 50 | 140 | animation-api | ✅ Complete |
+| **blocks** | 40 | 200 | block-api | ✅ Complete, NO I/O violations |
+| **inventory** | 40 | 80 | inventory-api | ✅ Complete, NO state violations |
+| **chat** | 30 | 90 | chat-api | ✅ Complete |
+| **default-commands** | 10 | 60 | chat-api | ✅ Complete (bridge) |
+| **hello** (example) | 0 | 60 | - | ✅ Complete |
 
-### Plugins to Create (New Features)
-- ⏳ `entity-tracking` - **Most important!** Make players visible
-- ⏳ `health` - Health, food, damage
+**All plugins:**
+- ✅ Follow architecture principles
+- ✅ Declare priority
+- ✅ No I/O violations
+- ✅ Use domain APIs correctly
+
+### ⏳ Next Migrations (Priority Order)
+
+| Migration | Priority | Lines | Effort | Impact |
+|-----------|----------|-------|--------|--------|
+| **movement** | HIGH | 430 | 1 week | Core mechanic |
+| **chunk-management** | HIGH | 300 | 1 week | Completes movement |
+| **system-messages** | MEDIUM | 30 | 1 day | Polish |
+
+**Total remaining:** ~760 lines → 3 plugins
+
+**See [NEXT_MIGRATION.md](NEXT_MIGRATION.md) for detailed migration plan**
+
+### 🚀 New Features to Add (Plugins)
+- ⏳ `entity-tracking` - **Critical!** Make players visible to each other
+- ⏳ `health` - Health, food, damage systems
 - ⏳ `combat` - PvP/PvE mechanics
 - ⏳ `item-entities` - Drop/pickup items
 - ⏳ `crafting` - Crafting system
@@ -853,8 +741,12 @@ You'll know you're doing it right when:
 
 ---
 
-**The foundation is ready. Time to build Minecraft! 🚀**
+## 🎯 **Next Action: Migrate Movement Plugin**
 
-**Start with:** Either migrate `blocks` (to learn the pattern) or create `entity-tracking` (highest impact)
+**The foundation is ready. Most code is migrated! 🚀**
 
-**Remember:** Core = infrastructure, Plugins = gameplay. When in doubt, check [PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md).
+**Start with:** [NEXT_MIGRATION.md](NEXT_MIGRATION.md) - Movement plugin migration guide
+
+**Then:** Chunk management → System messages → New features
+
+**Remember:** Core = infrastructure, Plugins = gameplay. All existing plugins are compliant!
