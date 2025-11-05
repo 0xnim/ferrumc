@@ -1,19 +1,12 @@
 [package]
-name = "ferrumc-plugin-join-leave"
-version = "0.1.0"
+name = "ferrumc-plugin-vanilla-join-leave"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
-# Plugin API
 ferrumc-plugin-api = { path = "../../../plugin-api" }
-
-# Domain API
 ferrumc-join-leave-api = { path = "../../../apis/join-leave-api" }
-
-# Core types
 ferrumc-text = { path = "../../../text" }
-
-# Logging
 tracing = { workspace = true }
 
 [lints]

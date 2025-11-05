@@ -5,9 +5,11 @@
 
 use ferrumc_plugin_api::prelude::*;
 use ferrumc_block_api::{
-    BlockAPI, BlockUpdateRequest, BreakBlockRequest, PlaceBlockEvent, PlaceBlockRequest,
-    PlayerActionEvent, SendBlockAckRequest,
+    BlockBroadcasts, BlockBreakAttemptEvent, BlockPlaceAttemptEvent, BlockRequests,
+    BreakBlockRequest, PlaceBlockRequest, SendBlockChangeAckRequest, SendBlockUpdateRequest,
 };
+use ferrumc_world::block_state_id::BlockStateId;
+use ferrumc_net_codec::net_types::var_int::VarInt;
 use tracing::trace;
 
 #[derive(Default)]
@@ -37,7 +39,6 @@ impl Plugin for VanillaBlocksPlugin {
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::builder()
             .with_block_api()
-            .with_entity_queries()
             .build()
     }
 
@@ -45,12 +46,12 @@ impl Plugin for VanillaBlocksPlugin {
         trace!("Loading vanilla-blocks plugin");
 
         ctx.events()
-            .register::<PlaceBlockEvent>()
-            .register::<PlayerActionEvent>()
+            .register::<BlockPlaceAttemptEvent>()
+            .register::<BlockBreakAttemptEvent>()
             .register::<PlaceBlockRequest>()
             .register::<BreakBlockRequest>()
-            .register::<BlockUpdateRequest>()
-            .register::<SendBlockAckRequest>();
+            .register::<SendBlockUpdateRequest>()
+            .register::<SendBlockChangeAckRequest>();
 
         ctx.systems()
             .add_tick(handle_place_block)
@@ -61,39 +62,42 @@ impl Plugin for VanillaBlocksPlugin {
 }
 
 fn handle_place_block(
-    mut events: EventReader<PlaceBlockEvent>,
-    mut api: BlockAPI,
-    entities: EntityQueries,
+    mut events: EventReader<BlockPlaceAttemptEvent>,
+    mut blocks: BlockRequests,
+    mut broadcasts: BlockBroadcasts,
 ) {
     for event in events.read() {
-        // Vanilla: Just allow placement and broadcast to all
-        api.place_block(event.player, event.position.clone(), event.block, event.sequence);
+        // Vanilla: Just allow placement (no validation for now)
+        // TODO: Get actual block from event when available
+        let block = BlockStateId::from(VarInt::new(1));
+        blocks.place_block(event.player, event.position.clone(), block, event.sequence);
         
         // Broadcast block change to all players
-        for (other, _, _) in entities.iter_players() {
-            api.update_block(other, event.position.clone(), event.block);
-        }
+        broadcasts.broadcast_block_update(event.position.clone(), block);
+        
+        // Send ack to player
+        broadcasts.send_ack(event.player, event.sequence);
         
         trace!("Placed block for player {}", event.player.index());
     }
 }
 
 fn handle_break_block(
-    mut events: EventReader<PlayerActionEvent>,
-    mut api: BlockAPI,
-    entities: EntityQueries,
+    mut events: EventReader<BlockBreakAttemptEvent>,
+    mut blocks: BlockRequests,
+    mut broadcasts: BlockBroadcasts,
 ) {
     for event in events.read() {
-        if event.is_break_action() {
-            // Vanilla: Just allow breaking and broadcast to all
-            api.break_block(event.player, event.position.clone(), event.sequence);
-            
-            // Broadcast block change to all players
-            for (other, _, _) in entities.iter_players() {
-                api.update_block(other, event.position.clone(), 0.into());
-            }
-            
-            trace!("Broke block for player {}", event.player.index());
-        }
+        // Vanilla: Just allow breaking (no validation for now)
+        blocks.break_block(event.player, event.position.clone(), event.sequence);
+        
+        // Broadcast air block to all players
+        let air = BlockStateId::from(VarInt::new(0));
+        broadcasts.broadcast_block_update(event.position.clone(), air);
+        
+        // Send ack to player
+        broadcasts.send_ack(event.player, event.sequence);
+        
+        trace!("Broke block for player {}", event.player.index());
     }
 }

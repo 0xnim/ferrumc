@@ -227,14 +227,18 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     registry.load_config("plugins.toml")?;
 
     // Register plugins
-    // Core gameplay plugins
-    registry.register::<ferrumc_plugin_animations::AnimationsPlugin>();
-    registry.register::<ferrumc_plugin_blocks::BlocksPlugin>();
-    registry.register::<ferrumc_plugin_chat::ChatPlugin>();
+    
+    // Core plugins (state synchronization - NO broadcasting)
+    registry.register::<ferrumc_plugin_entity_sync::EntitySyncPlugin>();
+    registry.register::<ferrumc_plugin_inventory_sync::InventorySyncPlugin>();
     registry.register::<ferrumc_plugin_default_commands::DefaultCommandsPlugin>();
-    registry.register::<ferrumc_plugin_inventory::InventoryPlugin>();
-    registry.register::<ferrumc_plugin_join_leave::JoinLeavePlugin>();
-    registry.register::<ferrumc_plugin_movement::MovementPlugin>();
+    
+    // Vanilla plugins (game logic + broadcasting)
+    registry.register::<ferrumc_plugin_vanilla_movement::VanillaMovementPlugin>();
+    registry.register::<ferrumc_plugin_vanilla_blocks::VanillaBlocksPlugin>();
+    registry.register::<ferrumc_plugin_vanilla_chat::VanillaChatPlugin>();
+    registry.register::<ferrumc_plugin_vanilla_animations::VanillaAnimationsPlugin>();
+    registry.register::<ferrumc_plugin_vanilla_join_leave::VanillaJoinLeavePlugin>();
     
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();

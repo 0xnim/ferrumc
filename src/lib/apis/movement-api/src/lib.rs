@@ -169,6 +169,9 @@ pub struct BroadcastMovementRequest {
     
     /// On ground state
     pub on_ground: bool,
+    
+    /// Receiver of the broadcast (None = all players, Some = specific player)
+    pub receiver: Option<Entity>,
 }
 
 /// Request to broadcast head rotation to other players
@@ -182,6 +185,9 @@ pub struct BroadcastHeadRotationRequest {
     
     /// New head rotation (yaw)
     pub yaw: f32,
+    
+    /// Receiver of the broadcast (None = all players, Some = specific player)
+    pub receiver: Option<Entity>,
 }
 
 /// Movement API - SystemParam for plugins
@@ -234,13 +240,13 @@ impl<'w> MovementAPI<'w> {
         });
     }
     
-    /// Request movement broadcast
+    /// Request movement broadcast to all players
     ///
     /// # Example
     ///
     /// ```rust,no_run
-    /// // Broadcast small position change
-    /// api.broadcast_movement(
+    /// // Broadcast small position change to everyone
+    /// api.broadcast_movement_all(
     ///     player,
     ///     MovementBroadcastType::UpdatePosition,
     ///     Some((delta_x, delta_y, delta_z)),
@@ -249,7 +255,7 @@ impl<'w> MovementAPI<'w> {
     ///     true,
     /// );
     /// ```
-    pub fn broadcast_movement(
+    pub fn broadcast_movement_all(
         &mut self,
         player: Entity,
         broadcast_type: MovementBroadcastType,
@@ -265,20 +271,74 @@ impl<'w> MovementAPI<'w> {
             rotation,
             position,
             on_ground,
+            receiver: None,
         });
     }
     
-    /// Request head rotation broadcast
+    /// Request movement broadcast to a specific player
     ///
     /// # Example
     ///
     /// ```rust,no_run
-    /// api.broadcast_head_rotation(player, new_yaw);
+    /// // Broadcast to one specific player (for invisibility, etc.)
+    /// api.broadcast_movement_to(
+    ///     receiver_player,
+    ///     moving_player,
+    ///     MovementBroadcastType::UpdatePosition,
+    ///     Some((delta_x, delta_y, delta_z)),
+    ///     None,
+    ///     None,
+    ///     true,
+    /// );
     /// ```
-    pub fn broadcast_head_rotation(&mut self, player: Entity, yaw: f32) {
+    pub fn broadcast_movement_to(
+        &mut self,
+        receiver: Entity,
+        player: Entity,
+        broadcast_type: MovementBroadcastType,
+        delta_pos: Option<(i16, i16, i16)>,
+        rotation: Option<Rotation>,
+        position: Option<Position>,
+        on_ground: bool,
+    ) {
+        self.broadcast_requests.write(BroadcastMovementRequest {
+            player,
+            broadcast_type,
+            delta_pos,
+            rotation,
+            position,
+            on_ground,
+            receiver: Some(receiver),
+        });
+    }
+    
+    /// Request head rotation broadcast to all players
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// api.broadcast_head_rotation_all(player, new_yaw);
+    /// ```
+    pub fn broadcast_head_rotation_all(&mut self, player: Entity, yaw: f32) {
         self.head_rotation_requests.write(BroadcastHeadRotationRequest {
             player,
             yaw,
+            receiver: None,
+        });
+    }
+    
+    /// Request head rotation broadcast to a specific player
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// api.broadcast_head_rotation_to(receiver_player, rotating_player, new_yaw);
+    /// ```
+    pub fn broadcast_head_rotation_to(&mut self, receiver: Entity, player: Entity, yaw: f32) {
+        self.head_rotation_requests.write(BroadcastHeadRotationRequest {
+            player,
+            yaw,
+            receiver: Some(receiver),
         });
     }
 }

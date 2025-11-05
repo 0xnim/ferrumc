@@ -1,25 +1,18 @@
-//! Join/Leave Plugin for FerrumC
+//! Vanilla Join/Leave Plugin
 //!
-//! This plugin handles player join and leave message formatting.
-//!
-//! # Architecture
-//!
-//! - Core fires PlayerJoinEvent / PlayerLeaveEvent
-//! - This plugin formats messages (game logic)
-//! - Plugin uses JoinLeaveAPI to send messages
-//! - Core handles actual message delivery (I/O)
+//! Implements vanilla Minecraft join/leave message formatting.
 
 use ferrumc_plugin_api::prelude::*;
 use ferrumc_join_leave_api::{JoinLeaveAPI, PlayerJoinEvent, PlayerLeaveEvent};
 use ferrumc_text::{Color, NamedColor, TextComponent};
-use tracing::info;
+use tracing::trace;
 
 #[derive(Default)]
-pub struct JoinLeavePlugin;
+pub struct VanillaJoinLeavePlugin;
 
-impl Plugin for JoinLeavePlugin {
+impl Plugin for VanillaJoinLeavePlugin {
     fn name(&self) -> &'static str {
-        "join-leave"
+        "vanilla-join-leave"
     }
 
     fn version(&self) -> &'static str {
@@ -31,85 +24,71 @@ impl Plugin for JoinLeavePlugin {
     }
 
     fn description(&self) -> &'static str {
-        "Handles player join and leave message formatting"
+        "Vanilla Minecraft join/leave messages"
     }
 
     fn priority(&self) -> i32 {
-        20 // Run before chat broadcasting
+        20
     }
     
     fn capabilities(&self) -> PluginCapabilities {
         PluginCapabilities::builder()
             .with_join_leave_api()
-            .with_entity_queries() // To iterate all players
+            .with_entity_queries()
             .build()
     }
 
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
-        info!("Loading join/leave plugin");
+        trace!("Loading vanilla-join-leave plugin");
 
-        // Register events from join-leave API
         ctx.events()
             .register::<PlayerJoinEvent>()
             .register::<PlayerLeaveEvent>()
             .register::<ferrumc_join_leave_api::SendJoinMessageRequest>()
             .register::<ferrumc_join_leave_api::SendLeaveMessageRequest>();
 
-        // Register our gameplay logic systems
         ctx.systems()
             .add_tick(handle_player_join)
             .add_tick(handle_player_leave);
 
-        info!("Join/leave plugin loaded successfully");
+        trace!("Vanilla-join-leave plugin loaded successfully");
     }
 }
 
-/// Handle player join events
-///
-/// This is pure game logic:
-/// - Formats the join message
-/// - Sends to all OTHER players (not the joining player)
 fn handle_player_join(
     mut events: EventReader<PlayerJoinEvent>,
     mut api: JoinLeaveAPI,
     entities: EntityQueries,
 ) {
     for event in events.read() {
-        // Format join message (game logic)
         let mut message = TextComponent::from(format!(
             "{} joined the game",
             event.identity.username
         ));
         message.color = Some(Color::Named(NamedColor::Yellow));
 
-        // Send to all OTHER players
         for (entity, _, _) in entities.iter_players() {
             if entity != event.joining_player {
                 api.send_join_message(event.joining_player, entity, message.clone());
             }
         }
+        
+        trace!("Sent join message for {}", event.identity.username);
     }
 }
 
-/// Handle player leave events
-///
-/// This is pure game logic:
-/// - Formats the leave message
-/// - Sends to all remaining players
 fn handle_player_leave(
     mut events: EventReader<PlayerLeaveEvent>,
     mut api: JoinLeaveAPI,
     entities: EntityQueries,
 ) {
     for event in events.read() {
-        // Format leave message (game logic)
         let mut message = TextComponent::from(format!(
             "{} left the game",
             event.identity.username
         ));
         message.color = Some(Color::Named(NamedColor::Yellow));
 
-        // Optional: add reason if provided
         if let Some(reason) = &event.reason {
             message = TextComponent::from(format!(
                 "{} left the game ({})",
@@ -118,9 +97,10 @@ fn handle_player_leave(
             message.color = Some(Color::Named(NamedColor::Yellow));
         }
 
-        // Send to all remaining players
         for (entity, _, _) in entities.iter_players() {
             api.send_leave_message(event.leaving_player, entity, message.clone());
         }
+        
+        trace!("Sent leave message for {}", event.identity.username);
     }
 }

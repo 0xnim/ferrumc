@@ -7,6 +7,8 @@ edition = "2021"
 ferrumc-plugin-api = { path = "../../../plugin-api" }
 ferrumc-block-api = { path = "../../../apis/block-api" }
 ferrumc-core = { path = "../../../core" }
+ferrumc-world = { path = "../../../world" }
+ferrumc-net-codec = { path = "../../../net/crates/codec" }
 tracing = { workspace = true }
 
 [lints]

@@ -58,17 +58,22 @@ fn handle_chat_messages(
     entities: EntityQueries,
 ) {
     for event in events.read() {
+        // Get player's username
+        let username = entities.identity(event.player)
+            .map(|id| id.username.as_str())
+            .unwrap_or("Unknown");
+        
         // Vanilla: Format as "<username> message"
         let formatted = TextComponent::from(format!(
             "<{}> {}",
-            event.username, event.message
+            username, event.message
         ));
         
         // Broadcast to all players
         for (player, _, _) in entities.iter_players() {
-            api.send_message(player, formatted.clone());
+            api.send(player, formatted.clone());
         }
         
-        trace!("Broadcasted chat message from {}", event.username);
+        trace!("Broadcasted chat message from {}", username);
     }
 }

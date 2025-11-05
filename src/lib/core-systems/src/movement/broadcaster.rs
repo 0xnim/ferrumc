@@ -70,7 +70,7 @@ enum MovementPacket {
 ///
 /// This is PURE I/O - no game logic!
 /// - Reads BroadcastMovementRequest events from plugins
-/// - Sends packets to all connected players
+/// - Sends packets to all connected players OR specific player based on receiver field
 pub fn broadcast_movement_updates(
     mut events: EventReader<BroadcastMovementRequest>,
     identity_query: Query<&PlayerIdentity>,
@@ -141,15 +141,36 @@ pub fn broadcast_movement_updates(
             }
         };
 
-        // Broadcast to all connected players (including the moving player)
-        for (entity, conn) in conn_query.iter() {
-            if !state.0.players.is_connected(entity) || !conn.running.load(Ordering::Relaxed) {
-                warn!("Player {} is not connected, skipping broadcast", entity);
-                continue;
+        // Send to specific player or all players based on receiver field
+        match request.receiver {
+            Some(receiver) => {
+                // Send to specific player only
+                let Ok((_, conn)) = conn_query.get(receiver) else {
+                    error!("Failed to get connection for receiver {}", receiver);
+                    continue;
+                };
+                
+                if !state.0.players.is_connected(receiver) || !conn.running.load(Ordering::Relaxed) {
+                    warn!("Receiver {} is not connected, skipping broadcast", receiver);
+                    continue;
+                }
+                
+                if let Err(e) = conn.send_packet_ref(&packet) {
+                    error!("Failed to send movement packet to player {}: {}", receiver, e);
+                }
             }
+            None => {
+                // Broadcast to all connected players
+                for (entity, conn) in conn_query.iter() {
+                    if !state.0.players.is_connected(entity) || !conn.running.load(Ordering::Relaxed) {
+                        warn!("Player {} is not connected, skipping broadcast", entity);
+                        continue;
+                    }
 
-            if let Err(e) = conn.send_packet_ref(&packet) {
-                error!("Failed to send movement packet to player {}: {}", entity, e);
+                    if let Err(e) = conn.send_packet_ref(&packet) {
+                        error!("Failed to send movement packet to player {}: {}", entity, e);
+                    }
+                }
             }
         }
     }
@@ -159,11 +180,11 @@ pub fn broadcast_movement_updates(
 ///
 /// This is PURE I/O - no game logic!
 /// - Reads BroadcastHeadRotationRequest events from plugins
-/// - Sends head rotation packets to all connected players
+/// - Sends head rotation packets to all connected players OR specific player based on receiver field
 pub fn broadcast_head_rotation(
     mut events: EventReader<BroadcastHeadRotationRequest>,
     identity_query: Query<&PlayerIdentity>,
-    conn_query: Query<&StreamWriter>,
+    conn_query: Query<(Entity, &StreamWriter)>,
     state: Res<GlobalStateResource>,
 ) {
     for request in events.read() {
@@ -177,13 +198,35 @@ pub fn broadcast_head_rotation(
             NetAngle::from_degrees(request.yaw as f64),
         );
 
-        for writer in conn_query.iter() {
-            if !writer.running.load(Ordering::Relaxed) {
-                continue;
+        // Send to specific player or all players based on receiver field
+        match request.receiver {
+            Some(receiver) => {
+                // Send to specific player only
+                let Ok((_, conn)) = conn_query.get(receiver) else {
+                    error!("Failed to get connection for receiver {}", receiver);
+                    continue;
+                };
+                
+                if !state.0.players.is_connected(receiver) || !conn.running.load(Ordering::Relaxed) {
+                    warn!("Receiver {} is not connected, skipping broadcast", receiver);
+                    continue;
+                }
+                
+                if let Err(e) = conn.send_packet_ref(&head_rot_packet) {
+                    error!("Failed to send head rotation packet to player {}: {}", receiver, e);
+                }
             }
+            None => {
+                // Broadcast to all connected players
+                for (entity, writer) in conn_query.iter() {
+                    if !state.0.players.is_connected(entity) || !writer.running.load(Ordering::Relaxed) {
+                        continue;
+                    }
 
-            if let Err(e) = writer.send_packet_ref(&head_rot_packet) {
-                error!("Failed to send head rotation packet: {}", e);
+                    if let Err(e) = writer.send_packet_ref(&head_rot_packet) {
+                        error!("Failed to send head rotation packet: {}", e);
+                    }
+                }
             }
         }
 
