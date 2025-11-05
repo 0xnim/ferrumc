@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# NO bevy_ecs - use plugin-api prelude instead
 ferrumc-plugin-api = { workspace = true }
 ferrumc-animation-api = { workspace = true }
-bevy_ecs = { workspace = true }
 tracing = { workspace = true }
 
 [lints]

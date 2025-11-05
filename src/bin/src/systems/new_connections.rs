@@ -1,6 +1,6 @@
-use crate::systems::system_messages;
-use bevy_ecs::prelude::{Commands, Res, Resource};
+use bevy_ecs::prelude::{Commands, EventWriter, Res, Resource};
 use crossbeam_channel::Receiver;
+use ferrumc_join_leave_api::PlayerJoinEvent;
 use ferrumc_core::chunks::chunk_receiver::ChunkReceiver;
 use ferrumc_core::conn::keepalive::KeepAliveTracker;
 use ferrumc_core::transform::grounded::OnGround;
@@ -20,6 +20,7 @@ pub fn accept_new_connections(
     mut cmd: Commands,
     new_connections: Res<NewConnectionRecv>,
     state: Res<GlobalStateResource>,
+    mut join_events: EventWriter<PlayerJoinEvent>,
 ) {
     if new_connections.0.is_empty() {
         return;
@@ -63,14 +64,11 @@ pub fn accept_new_connections(
             ),
         );
 
-        for player in &state.0.players.player_list {
-            if player.value().0 != new_connection.player_identity.uuid.as_u128() {
-                system_messages::player_join::handle(
-                    &new_connection.player_identity,
-                    *player.key(),
-                );
-            }
-        }
+        // Fire PlayerJoinEvent for plugins to handle
+        join_events.send(PlayerJoinEvent {
+            joining_player: entity.id(),
+            identity: new_connection.player_identity.clone(),
+        });
 
         if let Err(err) = return_sender.send(entity.id()) {
             error!(

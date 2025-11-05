@@ -1,0 +1,8 @@
+[package]
+name = "ferrumc-test-violations"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ferrumc-plugin-api = { path = "../../plugin-api" }
+tracing = { workspace = true }

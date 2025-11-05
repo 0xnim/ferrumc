@@ -12,14 +12,10 @@
 
 1. **[AGENTS.md](AGENTS.md)** - Commands, conventions, quick reference (5 min)
 2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture overview (15 min)
-3. **[PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md)** - **Critical:** Core vs plugins vs APIs (10 min)
-4. **[PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md)** - Complete plugin architecture + coordination (30 min)
-5. **[PLUGIN_QUICKSTART.md](PLUGIN_QUICKSTART.md)** - How to create plugins (15 min)
-6. **[PLUGIN_REVIEW.md](PLUGIN_REVIEW.md)** - **NEW!** Current plugin compliance analysis (10 min)
-7. **[NEXT_MIGRATION.md](NEXT_MIGRATION.md)** - **NEW!** Next migration plan (10 min)
-8. **[FEATURES.md](FEATURES.md)** - What's implemented, what's not (10 min)
+3. **[PLUGINS.md](PLUGINS.md)** - **Complete plugin guide** - Current state, redesign, migration (45 min)
+4. **[FEATURES.md](FEATURES.md)** - What's implemented, what's not (10 min)
 
-**Total reading time:** ~2 hours to fully understand the codebase and current state
+**Total reading time:** ~75 minutes to fully understand the codebase and current state
 
 ---
 
@@ -136,8 +132,7 @@ The three-layer architecture (Core ← APIs ← Plugins) is **IMPLEMENTED**:
 - Dependency management
 - Comprehensive documentation
 
-**See:** [PLUGIN_REVIEW.md](PLUGIN_REVIEW.md) for compliance scorecard  
-**See:** [NEXT_MIGRATION.md](NEXT_MIGRATION.md) for migration plan
+**See:** [PLUGINS.md](PLUGINS.md) for complete plugin architecture, current status, and migration plans
 
 ---
 
@@ -145,7 +140,7 @@ The three-layer architecture (Core ← APIs ← Plugins) is **IMPLEMENTED**:
 
 **Goal:** Migrate remaining gameplay code from binary to plugins
 
-**⭐ NEXT: Movement Plugin** - See [NEXT_MIGRATION.md](NEXT_MIGRATION.md) for details
+**⭐ NEXT: Movement Plugin** - See [PLUGINS.md](PLUGINS.md#migration-guide) for details
 
 **Remaining migrations:**
 1. **Movement System** (~430 lines) - Position/rotation updates, cross-chunk detection
@@ -654,12 +649,12 @@ fn dependencies(&self) -> Vec<&'static str> {
 
 ### For Understanding the Codebase
 1. [ARCHITECTURE.md](ARCHITECTURE.md) - How everything works
-2. [PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md) - What goes where
+2. [PLUGINS.md](PLUGINS.md) - Complete plugin system guide
 3. Read existing code in `src/lib/plugins/examples/hello/`
 
 ### For Implementing Features
 1. [FEATURES.md](FEATURES.md) - What needs to be built
-2. [PLUGIN_QUICKSTART.md](PLUGIN_QUICKSTART.md) - How to build it
+2. [PLUGINS.md](PLUGINS.md) - How to build plugins
 3. Minecraft Protocol: https://minecraft.wiki/w/Java_Edition_protocol
 
 ### For Code Style
@@ -693,10 +688,9 @@ You'll know you're doing it right when:
 
 ## 🎯 TL;DR - Start Here
 
-1. **Read [PLUGIN_REVIEW.md](PLUGIN_REVIEW.md)** (10 min) - See current plugin compliance
-2. **Read [NEXT_MIGRATION.md](NEXT_MIGRATION.md)** (15 min) - Next migration plan
-3. **Migrate `movement` plugin** (1 week) - Next priority migration
-4. **Or create `entity-tracking` plugin** (2-3 days) - Highest impact new feature
+1. **Read [PLUGINS.md](PLUGINS.md)** (45 min) - Complete plugin system guide
+2. **Migrate `movement` plugin** (1 week) - Next priority migration
+3. **Or create `entity-tracking` plugin** (2-3 days) - Highest impact new feature
 
 ---
 
@@ -729,7 +723,7 @@ You'll know you're doing it right when:
 
 **Total remaining:** ~760 lines → 3 plugins
 
-**See [NEXT_MIGRATION.md](NEXT_MIGRATION.md) for detailed migration plan**
+**See [PLUGINS.md](PLUGINS.md#migration-guide) for detailed migration plan**
 
 ### 🚀 New Features to Add (Plugins)
 - ⏳ `entity-tracking` - **Critical!** Make players visible to each other
@@ -745,7 +739,7 @@ You'll know you're doing it right when:
 
 **The foundation is ready. Most code is migrated! 🚀**
 
-**Start with:** [NEXT_MIGRATION.md](NEXT_MIGRATION.md) - Movement plugin migration guide
+**Start with:** [PLUGINS.md](PLUGINS.md) - Complete plugin system guide with migration details
 
 **Then:** Chunk management → System messages → New features
 

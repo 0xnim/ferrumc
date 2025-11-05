@@ -1,4 +1,8 @@
 //! Plugin context and configuration
+//!
+//! **DEPRECATED:** Use `PluginBuildContext` instead.
+//!
+//! This module is kept for backward compatibility only.
 
 use bevy_ecs::prelude::*;
 use ferrumc_state::GlobalState;
@@ -7,8 +11,15 @@ use std::time::Duration;
 
 /// Context provided to plugins during initialization.
 ///
+/// **DEPRECATED:** Use `PluginBuildContext` instead. This gives plugins
+/// too much access (World, State). The new API enforces capability boundaries.
+///
 /// Plugins use this to register systems, commands, events, and access
 /// server state and configuration.
+#[deprecated(
+    since = "0.2.0",
+    note = "Use PluginBuildContext instead. This API gives plugins too much access."
+)]
 pub struct PluginContext<'a> {
     /// ECS world for registering components, resources, and events
     pub world: &'a mut World,

@@ -1,7 +1,7 @@
 //! Plugin loading and initialization
 
 use bevy_ecs::prelude::*;
-use ferrumc_plugin_api::{Plugin, PluginConfig, PluginContext};
+use ferrumc_plugin_api::{Plugin, PluginConfig};
 use ferrumc_state::GlobalState;
 use std::collections::HashMap;
 use tracing::{error, info, warn};
@@ -137,7 +137,7 @@ impl PluginRegistry {
     pub fn build_all(
         self,
         world: &mut World,
-        state: GlobalState,
+        _state: GlobalState,
         tick_schedule: &mut Schedule,
     ) -> Result<(), PluginError> {
         info!("Initializing {} plugin(s)", self.plugins.len());
@@ -174,12 +174,20 @@ impl PluginRegistry {
 
             // Get plugin config
             let config = self.config.get(plugin.name()).cloned().unwrap_or_default();
+            
+            // Get capabilities
+            let capabilities = plugin.capabilities();
 
-            // Create context
-            let mut ctx = PluginContext::new(world, state.clone(), config, tick_schedule);
+            // Create context (new API)
+            let ctx = ferrumc_plugin_api::PluginBuildContext::new(
+                capabilities,
+                world,
+                tick_schedule,
+                config,
+            );
 
             // Build plugin
-            plugin.build(&mut ctx);
+            plugin.build(ctx);
 
             info!("  ✓ Plugin {} loaded successfully", plugin.name());
         }
@@ -225,6 +233,7 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     registry.register::<ferrumc_plugin_chat::ChatPlugin>();
     registry.register::<ferrumc_plugin_default_commands::DefaultCommandsPlugin>();
     registry.register::<ferrumc_plugin_inventory::InventoryPlugin>();
+    registry.register::<ferrumc_plugin_join_leave::JoinLeavePlugin>();
     
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();

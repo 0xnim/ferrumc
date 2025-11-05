@@ -45,12 +45,15 @@ members = [
     "src/lib/apis/block-api",
     "src/lib/apis/chat-api",
     "src/lib/apis/inventory-api",
+    "src/lib/apis/join-leave-api",
     "src/lib/core-systems",
     "src/lib/plugins/core/animations",
     "src/lib/plugins/core/blocks",
     "src/lib/plugins/core/chat",
     "src/lib/plugins/core/default-commands",
     "src/lib/plugins/core/inventory",
+    "src/lib/plugins/core/join-leave",
+    "src/lib/plugins/test_violations",
 ]
 
 #================== Lints ==================#
@@ -132,6 +135,7 @@ ferrumc-animation-api = { path = "src/lib/apis/animation-api" }
 ferrumc-block-api = { path = "src/lib/apis/block-api" }
 ferrumc-chat-api = { path = "src/lib/apis/chat-api" }
 ferrumc-inventory-api = { path = "src/lib/apis/inventory-api" }
+ferrumc-join-leave-api = { path = "src/lib/apis/join-leave-api" }
 
 # Core Systems (I/O layer)
 ferrumc-core-systems = { path = "src/lib/core-systems" }

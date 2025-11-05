@@ -1,6 +1,6 @@
-use crate::systems::system_messages;
-use bevy_ecs::prelude::{Commands, Entity, Query, Res};
+use bevy_ecs::prelude::{Commands, Entity, EventWriter, Query, Res};
 use ferrumc_core::identity::player_identity::PlayerIdentity;
+use ferrumc_join_leave_api::PlayerLeaveEvent;
 use ferrumc_net::connection::StreamWriter;
 use ferrumc_state::GlobalStateResource;
 use ferrumc_text::TextComponent;
@@ -10,6 +10,7 @@ pub fn connection_killer(
     query: Query<(Entity, &StreamWriter, &PlayerIdentity)>,
     mut cmd: Commands,
     state: Res<GlobalStateResource>,
+    mut leave_events: EventWriter<PlayerLeaveEvent>,
 ) {
     while let Some((disconnecting_entity, reason)) = state.0.players.disconnection_queue.pop() {
         let disconnecting_player_identity = query
@@ -56,9 +57,14 @@ pub fn connection_killer(
                     );
                 }
                 cmd.entity(entity).despawn();
-            } else {
-                system_messages::player_leave::handle(&disconnecting_player_identity, entity);
             }
         }
+        
+        // Fire PlayerLeaveEvent for plugins to handle
+        leave_events.send(PlayerLeaveEvent {
+            leaving_player: disconnecting_entity,
+            identity: disconnecting_player_identity,
+            reason,
+        });
     }
 }

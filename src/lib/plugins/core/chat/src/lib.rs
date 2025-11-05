@@ -22,10 +22,8 @@
 //! 7. Core receives SendChatMessageRequest
 //! 8. Core broadcasts SystemMessagePacket to all players
 
-use bevy_ecs::prelude::*;
+use ferrumc_plugin_api::prelude::*;
 use ferrumc_chat_api::{ChatAPI, ChatMessageEvent, SendChatMessageRequest};
-use ferrumc_core::identity::player_identity::PlayerIdentity;
-use ferrumc_plugin_api::{register_events, Plugin, PluginContext};
 use ferrumc_text::TextComponent;
 use tracing::info;
 
@@ -52,15 +50,24 @@ impl Plugin for ChatPlugin {
     fn priority(&self) -> i32 {
         30 // Modifier - formats messages before broadcasting
     }
+    
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::builder()
+            .with_chat_api()
+            .with_entity_queries()
+            .build()
+    }
 
-    fn build(&self, ctx: &mut PluginContext<'_>) {
+    fn build(&self, mut ctx: PluginBuildContext<'_>) {
         info!("Loading chat plugin");
 
         // Register events from chat API
-        register_events!(ctx, ChatMessageEvent, SendChatMessageRequest);
+        ctx.events()
+            .register::<ChatMessageEvent>()
+            .register::<SendChatMessageRequest>();
 
         // Register our gameplay logic systems
-        ctx.add_tick_system(handle_chat_messages);
+        ctx.systems().add_tick(handle_chat_messages);
 
         info!("Chat plugin loaded successfully");
     }
@@ -79,10 +86,10 @@ impl Plugin for ChatPlugin {
 fn handle_chat_messages(
     mut events: EventReader<ChatMessageEvent>,
     mut chat: ChatAPI,
-    query: Query<&PlayerIdentity>,
+    entities: EntityQueries,
 ) {
     for event in events.read() {
-        let Ok(identity) = query.get(event.player) else {
+        let Some(identity) = entities.identity(event.player) else {
             continue;
         };
 

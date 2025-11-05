@@ -13,9 +13,7 @@ The ARCHITECTURE.md file contains in-depth documentation about:
 
 **For plugin development (implementing Minecraft features), see:**
 - **[NEXT_STEPS.md](NEXT_STEPS.md)** - ⭐ START HERE - Complete guide for next developer
-- **[PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md)** - Comprehensive plugin architecture (NEW!)
-- [PLUGIN_VS_CORE.md](PLUGIN_VS_CORE.md) - Core vs APIs vs Plugins (critical!)
-- [PLUGIN_QUICKSTART.md](PLUGIN_QUICKSTART.md) - Quick start guide for creating plugins
+- **[PLUGINS.md](PLUGINS.md)** - Complete plugin system guide (architecture, redesign, migration)
 
 **For feature tracking, see [FEATURES.md](FEATURES.md)**
 

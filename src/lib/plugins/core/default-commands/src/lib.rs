@@ -23,8 +23,7 @@
 //! continue working during the migration.
 
 use ferrumc_chat_api::ChatAPI;
-use ferrumc_plugin_api::Plugin;
-use ferrumc_plugin_api::PluginContext;
+use ferrumc_plugin_api::{Plugin, PluginBuildContext, PluginCapabilities};
 use tracing::info;
 
 #[derive(Default)]
@@ -50,12 +49,18 @@ impl Plugin for DefaultCommandsPlugin {
     fn priority(&self) -> i32 {
         10 // Runs after other systems to drain message queue
     }
+    
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::builder()
+            .with_chat_api()
+            .build()
+    }
 
-    fn build(&self, ctx: &mut PluginContext<'_>) {
+    fn build(&self, mut ctx: PluginBuildContext<'_>) {
         info!("Loading default commands plugin");
 
         // Register system to drain mq queue and convert to chat events
-        ctx.add_tick_system(drain_legacy_mq_queue);
+        ctx.systems().add_tick(drain_legacy_mq_queue);
 
         info!("Default commands plugin loaded successfully");
     }

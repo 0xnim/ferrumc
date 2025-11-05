@@ -22,12 +22,11 @@
 //! 7. Core receives PlayAnimationRequest
 //! 8. Core broadcasts EntityAnimationPacket to players
 
-use bevy_ecs::prelude::*;
+use ferrumc_plugin_api::prelude::*;
 use ferrumc_animation_api::{
     AnimationAPI, AnimationType, EntityPose, Hand, PlayerCommand, PlayerCommandEvent,
     PlayerSwingArmEvent, PlayAnimationRequest, SetEntityPoseRequest,
 };
-use ferrumc_plugin_api::{register_events, Plugin, PluginContext};
 use tracing::info;
 
 #[derive(Default)]
@@ -53,22 +52,27 @@ impl Plugin for AnimationsPlugin {
     fn priority(&self) -> i32 {
         50 // Base system - calculates which animations to play
     }
+    
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::builder()
+            .with_animation_api()
+            .build()
+    }
 
-    fn build(&self, ctx: &mut PluginContext<'_>) {
+    fn build(&self, mut ctx: PluginBuildContext<'_>) {
         info!("Loading animations plugin");
 
         // Register events from animation API
-        register_events!(
-            ctx,
-            PlayerSwingArmEvent,
-            PlayerCommandEvent,
-            PlayAnimationRequest,
-            SetEntityPoseRequest
-        );
+        ctx.events()
+            .register::<PlayerSwingArmEvent>()
+            .register::<PlayerCommandEvent>()
+            .register::<PlayAnimationRequest>()
+            .register::<SetEntityPoseRequest>();
 
         // Register our gameplay logic systems
-        ctx.add_tick_system(handle_player_swings);
-        ctx.add_tick_system(handle_player_commands);
+        ctx.systems()
+            .add_tick(handle_player_swings)
+            .add_tick(handle_player_commands);
 
         info!("Animations plugin loaded successfully");
     }

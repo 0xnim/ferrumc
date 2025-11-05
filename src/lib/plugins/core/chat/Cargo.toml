@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy_ecs = { workspace = true }
+# NO bevy_ecs - use plugin-api prelude instead
 tracing = { workspace = true }
 
 # Plugin framework
@@ -14,7 +14,6 @@ ferrumc-plugin-api = { workspace = true }
 ferrumc-chat-api = { workspace = true }
 
 # Core types
-ferrumc-core = { workspace = true }
 ferrumc-text = { workspace = true }
 
 [lints]

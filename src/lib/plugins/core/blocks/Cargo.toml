@@ -4,23 +4,25 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy_ecs = { workspace = true }
+# NO bevy_ecs - use plugin-api prelude instead
 tracing = { workspace = true }
 serde_json = { workspace = true }
 once_cell = { workspace = true }
 
-# Plugin framework
+# Plugin framework (provides safe ECS types)
 ferrumc-plugin-api = { workspace = true }
 
 # Domain APIs
 ferrumc-block-api = { workspace = true }
 
-# Core types
+# Core types (only for data structures, not for I/O)
 ferrumc-core = { workspace = true }
 ferrumc-net-codec = { workspace = true }
 ferrumc-world = { workspace = true }
-ferrumc-state = { workspace = true }
 ferrumc-inventories = { workspace = true }
+
+# NO ferrumc-state - use APIs instead
+# NO ferrumc-net - use APIs instead
 
 [lints]
 workspace = true

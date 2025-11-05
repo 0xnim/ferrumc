@@ -35,19 +35,25 @@ impl Plugin for HelloPlugin {
     fn priority(&self) -> i32 {
         0 // Example plugin, no specific priority needed
     }
+    
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::builder()
+            .build() // No special capabilities needed
+    }
 
-    fn build(&self, ctx: &mut PluginContext) {
+    fn build(&self, mut ctx: PluginBuildContext) {
         // Get configuration (with defaults)
         let message = ctx
-            .get_config::<String>("message")
+            .config()
+            .get_string("message")
             .unwrap_or_else(|| "Hello from plugin!".to_string());
-        let interval_secs = ctx.get_config::<u64>("interval_seconds").unwrap_or(10);
+        let interval_secs = ctx.config().get_int("interval_seconds").unwrap_or(10) as u64;
 
         info!("Hello plugin initialized with message: '{}'", message);
         info!("Will log every {} seconds", interval_secs);
 
         // Register a periodic system
-        ctx.add_timed_system(
+        ctx.systems().add_timed(
             "hello_periodic",
             Duration::from_secs(interval_secs),
             move || {

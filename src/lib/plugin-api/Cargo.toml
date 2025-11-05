@@ -17,6 +17,7 @@ ferrumc-net-codec = { path = "../net/crates/codec" }
 ferrumc-text = { path = "../text" }
 ferrumc-commands = { path = "../commands" }
 ferrumc-scheduler = { path = "../scheduler" }
+ferrumc-inventories = { path = "../inventories" }
 
 # Serialization
 serde = { workspace = true }

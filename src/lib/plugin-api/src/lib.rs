@@ -27,17 +27,24 @@
 //! }
 //! ```
 
+pub mod build_context;
+pub mod capabilities;
 pub mod context;
 pub mod entity;
 pub mod events;
 pub mod macros;
+pub mod prelude;
+pub mod queries;
 pub mod world;
 
 #[cfg(test)]
 mod tests;
 
+pub use build_context::{EventRegistry, PluginBuildContext, SystemRegistry};
+pub use capabilities::{PluginCapabilities, PluginCapabilitiesBuilder, ResourceCapability};
 pub use context::{PluginConfig, PluginContext};
 pub use entity::EntityExt;
+pub use queries::{EntityQueries, InventoryQueries, InventoryQueriesMut, WorldQueries};
 pub use world::WorldExt;
 
 /// Trait that all plugins must implement.
@@ -108,42 +115,56 @@ pub trait Plugin: Send + Sync + 'static {
     fn priority(&self) -> i32 {
         0  // Default priority
     }
+    
+    /// Declare required capabilities.
+    ///
+    /// Plugins must declare what they need access to. The type system
+    /// will enforce these boundaries at compile time.
+    ///
+    /// **Default:** For backward compatibility, returns all capabilities.
+    /// This will be removed in a future version.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// fn capabilities(&self) -> PluginCapabilities {
+    ///     PluginCapabilities::builder()
+    ///         .with_animation_api()
+    ///         .with_entity_queries()
+    ///         .build()
+    /// }
+    /// ```
+    #[allow(deprecated)]
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::all()  // Default: all for backward compat
+    }
 
     /// Build the plugin - called during server initialization.
     ///
     /// This is where you register:
     /// - ECS systems (tick systems, timed systems)
-    /// - Commands
     /// - Event types
     /// - Components
     /// - Resources
-    /// - Packet handlers
     ///
     /// # Example
     ///
     /// ```rust,no_run
-    /// fn build(&self, ctx: &mut PluginContext) {
-    ///     // Register a system that runs every tick
-    ///     ctx.add_tick_system(my_tick_system);
+    /// fn build(&self, mut ctx: PluginBuildContext) {
+    ///     // Register events
+    ///     ctx.events()
+    ///         .register::<MyEvent>();
     ///     
-    ///     // Register a system that runs every 5 seconds
-    ///     ctx.add_timed_system(
-    ///         "my_periodic_system",
-    ///         Duration::from_secs(5),
-    ///         my_periodic_system
-    ///     );
-    ///     
-    ///     // Register a command
-    ///     ctx.register_command(my_command);
-    ///     
-    ///     // Register an event type
-    ///     ctx.register_event::<MyEvent>();
+    ///     // Register systems
+    ///     ctx.systems()
+    ///         .add_tick(my_tick_system)
+    ///         .add_timed("periodic", Duration::from_secs(5), my_periodic_system);
     ///     
     ///     // Insert a resource
-    ///     ctx.insert_resource(MyResource::default());
+    ///     ctx.events().insert_resource(MyResource::default());
     /// }
     /// ```
-    fn build(&self, ctx: &mut PluginContext<'_>);
+    fn build(&self, ctx: PluginBuildContext<'_>);
 }
 
 /// Helper trait for plugin implementations that need default construction.

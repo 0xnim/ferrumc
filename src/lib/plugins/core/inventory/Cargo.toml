@@ -5,12 +5,10 @@ edition = "2021"
 description = "Inventory gameplay plugin for FerrumC"
 
 [dependencies]
-bevy_ecs = { workspace = true }
+# NO bevy_ecs - use plugin-api prelude instead
 tracing = { workspace = true }
 
 # Core infrastructure
-ferrumc-core = { workspace = true }
-ferrumc-state = { workspace = true }
 ferrumc-inventories = { workspace = true }
 
 # Domain API
@@ -18,6 +16,9 @@ ferrumc-inventory-api = { workspace = true }
 
 # Plugin framework
 ferrumc-plugin-api = { workspace = true }
+
+# NO ferrumc-state - use APIs instead
+# NO ferrumc-core - not needed
 
 [lints]
 workspace = true

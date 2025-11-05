@@ -9,11 +9,8 @@
 //! - This plugin reads events and applies game logic
 //! - Plugin uses InventoryAPI to interact with inventory state
 
-use bevy_ecs::prelude::*;
-use ferrumc_inventories::hotbar::Hotbar;
-use ferrumc_inventories::inventory::Inventory;
+use ferrumc_plugin_api::prelude::*;
 use ferrumc_inventory_api::{SetCreativeSlotEvent, SetHeldItemEvent};
-use ferrumc_plugin_api::{register_events, Plugin, PluginContext};
 use tracing::{debug, error, info};
 
 #[derive(Default)]
@@ -39,16 +36,25 @@ impl Plugin for InventoryPlugin {
     fn priority(&self) -> i32 {
         40 // Inventory management logic
     }
+    
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::builder()
+            .with_inventory_api()
+            .build()
+    }
 
-    fn build(&self, ctx: &mut PluginContext<'_>) {
+    fn build(&self, mut ctx: PluginBuildContext<'_>) {
         info!("Loading inventory plugin");
 
         // Register events from inventory API
-        register_events!(ctx, SetCreativeSlotEvent, SetHeldItemEvent);
+        ctx.events()
+            .register::<SetCreativeSlotEvent>()
+            .register::<SetHeldItemEvent>();
 
         // Register our gameplay logic systems
-        ctx.add_tick_system(handle_creative_slot_changes);
-        ctx.add_tick_system(handle_held_item_changes);
+        ctx.systems()
+            .add_tick(handle_creative_slot_changes)
+            .add_tick(handle_held_item_changes);
 
         info!("Inventory plugin loaded successfully");
     }
@@ -62,7 +68,7 @@ impl Plugin for InventoryPlugin {
 /// - Handles special cases (count=0 clears slot)
 fn handle_creative_slot_changes(
     mut events: EventReader<SetCreativeSlotEvent>,
-    mut query: Query<&mut Inventory>,
+    mut inventories: InventoryQueriesMut,
 ) {
     for event in events.read() {
         debug!(
@@ -70,7 +76,7 @@ fn handle_creative_slot_changes(
             event.player, event.slot_index, event.slot.count.0
         );
 
-        let Ok(mut inventory) = query.get_mut(event.player) else {
+        let Some((mut inventory, _hotbar)) = inventories.get_mut(event.player) else {
             error!("Could not find inventory for player {:?}", event.player);
             continue;
         };
@@ -102,7 +108,7 @@ fn handle_creative_slot_changes(
 /// - Updates the selected hotbar slot
 fn handle_held_item_changes(
     mut events: EventReader<SetHeldItemEvent>,
-    mut query: Query<&mut Hotbar>,
+    mut inventories: InventoryQueriesMut,
 ) {
     for event in events.read() {
         debug!(
@@ -119,7 +125,7 @@ fn handle_held_item_changes(
             continue;
         }
 
-        let Ok(mut hotbar) = query.get_mut(event.player) else {
+        let Some((_inventory, mut hotbar)) = inventories.get_mut(event.player) else {
             error!("Could not find hotbar for player {:?}", event.player);
             continue;
         };

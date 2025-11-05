@@ -20,6 +20,7 @@ ferrumc-animation-api = { workspace = true }
 ferrumc-block-api = { workspace = true }
 ferrumc-chat-api = { workspace = true }
 ferrumc-inventory-api = { workspace = true }
+ferrumc-join-leave-api = { workspace = true }
 
 [lints]
 workspace = true

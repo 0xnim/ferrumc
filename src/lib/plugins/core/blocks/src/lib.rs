@@ -12,14 +12,9 @@
 
 mod item_mapping;
 
-use bevy_ecs::prelude::*;
+use ferrumc_plugin_api::prelude::*;
 use ferrumc_block_api::{BlockAPI, BlockBreakAttemptEvent, BlockPlaceAttemptEvent, Hand};
-use ferrumc_core::collisions::bounds::CollisionBounds;
-use ferrumc_core::transform::position::Position;
-use ferrumc_inventories::hotbar::Hotbar;
-use ferrumc_inventories::inventory::Inventory;
 use ferrumc_net_codec::net_types::network_position::NetworkPosition;
-use ferrumc_plugin_api::{register_events, Plugin, PluginContext};
 use ferrumc_world::block_state_id::BlockStateId;
 use tracing::{debug, error, info, trace};
 
@@ -48,24 +43,31 @@ impl Plugin for BlocksPlugin {
     fn priority(&self) -> i32 {
         40 // Validation and placement logic
     }
+    
+    fn capabilities(&self) -> PluginCapabilities {
+        PluginCapabilities::builder()
+            .with_block_api()
+            .with_entity_queries()
+            .with_inventory_api()
+            .build()
+    }
 
-    fn build(&self, ctx: &mut PluginContext<'_>) {
+    fn build(&self, mut ctx: PluginBuildContext<'_>) {
         info!("Loading blocks plugin");
 
         // Register events from block API
-        register_events!(
-            ctx,
-            BlockPlaceAttemptEvent,
-            BlockBreakAttemptEvent,
-            ferrumc_block_api::PlaceBlockRequest,
-            ferrumc_block_api::BreakBlockRequest,
-            ferrumc_block_api::SendBlockUpdateRequest,
-            ferrumc_block_api::SendBlockChangeAckRequest
-        );
+        ctx.events()
+            .register::<BlockPlaceAttemptEvent>()
+            .register::<BlockBreakAttemptEvent>()
+            .register::<ferrumc_block_api::PlaceBlockRequest>()
+            .register::<ferrumc_block_api::BreakBlockRequest>()
+            .register::<ferrumc_block_api::SendBlockUpdateRequest>()
+            .register::<ferrumc_block_api::SendBlockChangeAckRequest>();
 
         // Register our gameplay logic systems (validation only - no I/O!)
-        ctx.add_tick_system(handle_block_placement);
-        ctx.add_tick_system(handle_block_breaking);
+        ctx.systems()
+            .add_tick(handle_block_placement)
+            .add_tick(handle_block_breaking);
 
         info!("Blocks plugin loaded successfully");
     }
@@ -81,8 +83,8 @@ impl Plugin for BlocksPlugin {
 fn handle_block_placement(
     mut events: EventReader<BlockPlaceAttemptEvent>,
     mut blocks: BlockAPI,
-    query: Query<(&Inventory, &Hotbar)>,
-    pos_query: Query<(&Position, &CollisionBounds)>,
+    inventories: InventoryQueries,
+    entities: EntityQueries,
 ) {
     for event in events.read() {
         // Only handle main hand for now
@@ -92,7 +94,7 @@ fn handle_block_placement(
         }
 
         // Validate: Get player inventory
-        let Ok((inventory, hotbar)) = query.get(event.player) else {
+        let Some((inventory, hotbar)) = inventories.get(event.player) else {
             debug!("Could not get inventory for player {:?}", event.player);
             continue;
         };
@@ -135,22 +137,7 @@ fn handle_block_placement(
         );
 
         // Validate: Check collision with entities
-        let does_collide = pos_query.iter().any(|(pos, bounds)| {
-            bounds.collides(
-                (pos.x, pos.y, pos.z),
-                &CollisionBounds {
-                    x_offset_start: 0.0,
-                    x_offset_end: 1.0,
-                    y_offset_start: 0.0,
-                    y_offset_end: 1.0,
-                    z_offset_start: 0.0,
-                    z_offset_end: 1.0,
-                },
-                (x as f64, y as f64, z as f64),
-            )
-        });
-
-        if does_collide {
+        if entities.would_collide_with_block(x, y as i32, z) {
             trace!("Block placement collided with entity");
             continue;
         }
