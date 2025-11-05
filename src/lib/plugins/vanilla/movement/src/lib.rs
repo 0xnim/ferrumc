@@ -52,15 +52,6 @@ impl Plugin for VanillaMovementPlugin {
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
         trace!("Loading vanilla-movement plugin");
 
-        // Register events
-        ctx.events()
-            .register::<PlayerMoveEvent>()
-            .register::<PlayerRotateEvent>()
-            .register::<PlayerMoveAndRotateEvent>()
-            .register::<HeadRotationEvent>()
-            .register::<BroadcastMovementRequest>()
-            .register::<BroadcastHeadRotationRequest>();
-
         // Register vanilla behavior systems
         ctx.systems()
             .add_tick(broadcasting::broadcast_position_updates)

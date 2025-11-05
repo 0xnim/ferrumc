@@ -33,7 +33,12 @@ ferrumc-threadpool = { workspace = true }
 ferrumc-inventories = { workspace = true }
 ferrumc-plugin-api = { workspace = true }
 ferrumc-core-systems = { workspace = true }
+ferrumc-animation-api = { workspace = true }
+ferrumc-block-api = { workspace = true }
+ferrumc-chat-api = { workspace = true }
+ferrumc-inventory-api = { workspace = true }
 ferrumc-join-leave-api = { workspace = true }
+ferrumc-movement-api = { workspace = true }
 ferrumc-plugin-hello = { path = "../lib/plugins/examples/hello" }
 ferrumc-plugin-entity-sync = { path = "../lib/plugins/core/entity-sync" }
 ferrumc-plugin-inventory-sync = { path = "../lib/plugins/core/inventory-sync" }

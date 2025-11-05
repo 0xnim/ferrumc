@@ -41,8 +41,8 @@ pub struct PlayAnimationRequest {
     pub entity: Entity,
     /// The animation to play
     pub animation: AnimationType,
-    /// Whether to broadcast to all players (true) or just nearby (false)
-    pub broadcast_to_all: bool,
+    /// Optionally exclude a player from receiving the broadcast (typically the triggering player)
+    pub exclude_player: Option<Entity>,
 }
 
 /// Request to set an entity's pose/stance
@@ -57,6 +57,6 @@ pub struct SetEntityPoseRequest {
     pub entity_id: VarInt,
     /// The new pose
     pub pose: EntityPose,
-    /// Whether to broadcast to all players (true) or just nearby (false)
-    pub broadcast_to_all: bool,
+    /// Optionally exclude a player from receiving the broadcast (typically the triggering player)
+    pub exclude_player: Option<Entity>,
 }

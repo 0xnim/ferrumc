@@ -28,7 +28,7 @@ pub struct AnimationAPI<'w> {
 }
 
 impl<'w> AnimationAPI<'w> {
-    /// Play an animation for an entity, visible to nearby players
+    /// Play an animation for an entity, visible to all players
     ///
     /// # Arguments
     ///
@@ -38,25 +38,28 @@ impl<'w> AnimationAPI<'w> {
         self.animation_events.write(PlayAnimationRequest {
             entity,
             animation,
-            broadcast_to_all: false,
+            exclude_player: None,
         });
     }
 
-    /// Play an animation for an entity, visible to all players
+    /// Play an animation for an entity, visible to all players except the triggering player
+    ///
+    /// This is the typical use case for player-triggered animations (swing, etc.)
     ///
     /// # Arguments
     ///
     /// * `entity` - The entity to animate
     /// * `animation` - The animation type to play
-    pub fn play_animation_global(&mut self, entity: Entity, animation: AnimationType) {
+    /// * `exclude` - The player to exclude from the broadcast (usually the triggering player)
+    pub fn play_animation_except(&mut self, entity: Entity, animation: AnimationType, exclude: Entity) {
         self.animation_events.write(PlayAnimationRequest {
             entity,
             animation,
-            broadcast_to_all: true,
+            exclude_player: Some(exclude),
         });
     }
 
-    /// Set an entity's pose, visible to nearby players
+    /// Set an entity's pose, visible to all players
     ///
     /// # Arguments
     ///
@@ -68,23 +71,26 @@ impl<'w> AnimationAPI<'w> {
             entity,
             entity_id,
             pose,
-            broadcast_to_all: false,
+            exclude_player: None,
         });
     }
 
-    /// Set an entity's pose, visible to all players
+    /// Set an entity's pose, visible to all players except the triggering player
+    ///
+    /// This is the typical use case for player-triggered pose changes (sneak, sprint, etc.)
     ///
     /// # Arguments
     ///
     /// * `entity` - The entity whose pose to change
     /// * `entity_id` - The entity's network ID
     /// * `pose` - The new pose
-    pub fn set_pose_global(&mut self, entity: Entity, entity_id: VarInt, pose: EntityPose) {
+    /// * `exclude` - The player to exclude from the broadcast (usually the triggering player)
+    pub fn set_pose_except(&mut self, entity: Entity, entity_id: VarInt, pose: EntityPose, exclude: Entity) {
         self.pose_events.write(SetEntityPoseRequest {
             entity,
             entity_id,
             pose,
-            broadcast_to_all: true,
+            exclude_player: Some(exclude),
         });
     }
 }

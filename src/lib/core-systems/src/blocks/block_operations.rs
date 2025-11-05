@@ -61,7 +61,7 @@ pub fn handle_place_block_requests(
         // Send acknowledgment to the player
         blocks.send_ack(request.player, request.sequence);
 
-        // Broadcast block update to all players
+        // Broadcast block update to all players (vanilla behavior)
         blocks.broadcast_block_update(request.position.clone(), request.block);
     }
 }
@@ -122,7 +122,7 @@ pub fn handle_break_block_requests(
         // Send acknowledgment to the player
         blocks.send_ack(request.player, request.sequence);
 
-        // Broadcast block update to all players (set to air)
+        // Broadcast block update to all players including the breaker (vanilla behavior, set to air)
         blocks.broadcast_block_update(request.position.clone(), BlockStateId::default());
     }
 }

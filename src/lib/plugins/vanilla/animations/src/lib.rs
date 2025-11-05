@@ -42,12 +42,6 @@ impl Plugin for VanillaAnimationsPlugin {
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
         trace!("Loading vanilla-animations plugin");
 
-        ctx.events()
-            .register::<PlayerSwingArmEvent>()
-            .register::<PlayerCommandEvent>()
-            .register::<PlayAnimationRequest>()
-            .register::<SetEntityPoseRequest>();
-
         ctx.systems()
             .add_tick(handle_swing_arm)
             .add_tick(handle_player_command);
@@ -60,6 +54,10 @@ fn handle_swing_arm(
     mut events: EventReader<PlayerSwingArmEvent>,
     mut api: AnimationAPI,
 ) {
+    let count = events.len();
+    if count > 0 {
+        trace!("Plugin handling {} swing arm events", count);
+    }
     for event in events.read() {
         use ferrumc_animation_api::Hand;
         
@@ -68,8 +66,8 @@ fn handle_swing_arm(
             Hand::Off => AnimationType::SwingOffhand,
         };
         
-        // Vanilla: Broadcast to all players
-        api.play_animation_global(event.player, animation);
+        // Vanilla: Broadcast to all players except the one who swung
+        api.play_animation_except(event.player, animation, event.player);
         
         trace!("Played swing animation for player {}", event.player.index());
     }
@@ -91,8 +89,8 @@ fn handle_player_command(
             _ => continue,
         };
         
-        // Vanilla: Broadcast to all players
-        api.set_pose_global(event.player, event.entity_id, pose);
+        // Vanilla: Broadcast to all players except the one who changed pose
+        api.set_pose_except(event.player, event.entity_id, pose, event.player);
         
         trace!("Set pose {:?} for player {}", pose, event.player.index());
     }

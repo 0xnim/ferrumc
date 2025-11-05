@@ -160,8 +160,13 @@ pub fn broadcast_movement_updates(
                 }
             }
             None => {
-                // Broadcast to all connected players
+                // Broadcast to all connected players except the moving player
                 for (entity, conn) in conn_query.iter() {
+                    // Never send movement back to the player who moved
+                    if entity == request.player {
+                        continue;
+                    }
+                    
                     if !state.0.players.is_connected(entity) || !conn.running.load(Ordering::Relaxed) {
                         warn!("Player {} is not connected, skipping broadcast", entity);
                         continue;
@@ -217,8 +222,13 @@ pub fn broadcast_head_rotation(
                 }
             }
             None => {
-                // Broadcast to all connected players
+                // Broadcast to all connected players except the rotating player
                 for (entity, writer) in conn_query.iter() {
+                    // Never send head rotation back to the player who rotated
+                    if entity == request.player {
+                        continue;
+                    }
+                    
                     if !state.0.players.is_connected(entity) || !writer.running.load(Ordering::Relaxed) {
                         continue;
                     }

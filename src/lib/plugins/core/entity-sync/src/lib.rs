@@ -52,14 +52,6 @@ impl Plugin for EntitySyncPlugin {
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
         trace!("Loading entity-sync plugin");
 
-        // Register events
-        ctx.events()
-            .register::<PlayerMoveEvent>()
-            .register::<PlayerRotateEvent>()
-            .register::<PlayerMoveAndRotateEvent>()
-            .register::<ApplyMovementRequest>()
-            .register::<CrossChunkBoundaryEvent>();
-
         // Register state update systems
         ctx.systems()
             .add_tick(position::update_position_from_move)

@@ -18,6 +18,10 @@ pub fn broadcast_animations(
     conn_query: Query<(Entity, &StreamWriter)>,
     state: Res<GlobalStateResource>,
 ) {
+    let count = requests.len();
+    if count > 0 {
+        tracing::debug!("Broadcasting {} animation requests", count);
+    }
     for request in requests.read() {
         let Ok(identity) = query.get(request.entity) else {
             error!("Failed to get identity for entity {:?}", request.entity);
@@ -30,8 +34,11 @@ pub fn broadcast_animations(
         );
 
         for (entity, conn) in conn_query.iter() {
-            if !request.broadcast_to_all && entity == request.entity {
-                continue;
+            // Skip excluded player (typically the one who triggered the animation)
+            if let Some(excluded) = request.exclude_player {
+                if entity == excluded {
+                    continue;
+                }
             }
 
             if !state.0.players.is_connected(entity) {

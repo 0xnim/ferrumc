@@ -40,11 +40,6 @@ impl Plugin for InventorySyncPlugin {
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
         trace!("Loading inventory-sync plugin");
 
-        ctx.events()
-            .register::<SetCreativeSlotEvent>()
-            .register::<SetHeldItemEvent>()
-            .register::<SendInventoryUpdateRequest>();
-
         trace!("Inventory-sync plugin loaded successfully");
     }
 }

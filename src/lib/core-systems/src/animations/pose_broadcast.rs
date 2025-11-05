@@ -35,8 +35,11 @@ pub fn broadcast_pose_changes(
         let packet = EntityMetadataPacket::new(request.entity_id, metadata);
 
         for (entity, conn) in conn_query.iter() {
-            if !request.broadcast_to_all && entity == request.entity {
-                continue;
+            // Skip excluded player (typically the one who triggered the pose change)
+            if let Some(excluded) = request.exclude_player {
+                if entity == excluded {
+                    continue;
+                }
             }
 
             if !state.0.players.is_connected(entity) {

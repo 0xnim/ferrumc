@@ -11,10 +11,15 @@ pub fn handle_swing_arm_packets(
     packets: Res<SwingArmPacketReceiver>,
     mut events: EventWriter<PlayerSwingArmEvent>,
 ) {
+    let mut count = 0;
     for (packet, entity) in packets.0.try_iter() {
         events.write(PlayerSwingArmEvent {
             player: entity,
             hand: Hand::from(packet.hand.0),
         });
+        count += 1;
+    }
+    if count > 0 {
+        tracing::debug!("Received {} swing arm packets", count);
     }
 }

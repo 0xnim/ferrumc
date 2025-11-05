@@ -41,12 +41,6 @@ impl Plugin for VanillaJoinLeavePlugin {
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
         trace!("Loading vanilla-join-leave plugin");
 
-        ctx.events()
-            .register::<PlayerJoinEvent>()
-            .register::<PlayerLeaveEvent>()
-            .register::<ferrumc_join_leave_api::SendJoinMessageRequest>()
-            .register::<ferrumc_join_leave_api::SendLeaveMessageRequest>();
-
         ctx.systems()
             .add_tick(handle_player_join)
             .add_tick(handle_player_leave);

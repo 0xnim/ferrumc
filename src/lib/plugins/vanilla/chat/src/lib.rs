@@ -41,10 +41,6 @@ impl Plugin for VanillaChatPlugin {
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
         trace!("Loading vanilla-chat plugin");
 
-        ctx.events()
-            .register::<ChatMessageEvent>()
-            .register::<SendChatMessageRequest>();
-
         ctx.systems()
             .add_tick(handle_chat_messages);
 

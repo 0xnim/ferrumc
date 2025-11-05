@@ -45,14 +45,6 @@ impl Plugin for VanillaBlocksPlugin {
     fn build(&self, mut ctx: PluginBuildContext<'_>) {
         trace!("Loading vanilla-blocks plugin");
 
-        ctx.events()
-            .register::<BlockPlaceAttemptEvent>()
-            .register::<BlockBreakAttemptEvent>()
-            .register::<PlaceBlockRequest>()
-            .register::<BreakBlockRequest>()
-            .register::<SendBlockUpdateRequest>()
-            .register::<SendBlockChangeAckRequest>();
-
         ctx.systems()
             .add_tick(handle_place_block)
             .add_tick(handle_break_block);
@@ -64,19 +56,14 @@ impl Plugin for VanillaBlocksPlugin {
 fn handle_place_block(
     mut events: EventReader<BlockPlaceAttemptEvent>,
     mut blocks: BlockRequests,
-    mut broadcasts: BlockBroadcasts,
 ) {
     for event in events.read() {
         // Vanilla: Just allow placement (no validation for now)
         // TODO: Get actual block from event when available
         let block = BlockStateId::from(VarInt::new(1));
+        
+        // Request block placement - core handles I/O and broadcasting
         blocks.place_block(event.player, event.position.clone(), block, event.sequence);
-        
-        // Broadcast block change to all players
-        broadcasts.broadcast_block_update(event.position.clone(), block);
-        
-        // Send ack to player
-        broadcasts.send_ack(event.player, event.sequence);
         
         trace!("Placed block for player {}", event.player.index());
     }
@@ -85,18 +72,11 @@ fn handle_place_block(
 fn handle_break_block(
     mut events: EventReader<BlockBreakAttemptEvent>,
     mut blocks: BlockRequests,
-    mut broadcasts: BlockBroadcasts,
 ) {
     for event in events.read() {
         // Vanilla: Just allow breaking (no validation for now)
+        // Request block break - core handles I/O and broadcasting
         blocks.break_block(event.player, event.position.clone(), event.sequence);
-        
-        // Broadcast air block to all players
-        let air = BlockStateId::from(VarInt::new(0));
-        broadcasts.broadcast_block_update(event.position.clone(), air);
-        
-        // Send ack to player
-        broadcasts.send_ack(event.player, event.sequence);
         
         trace!("Broke block for player {}", event.player.index());
     }
