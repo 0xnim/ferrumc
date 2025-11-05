@@ -174,6 +174,7 @@ fn build_timed_scheduler_base() -> Scheduler {
         // Core I/O layer: packet → event converters
         s.add_systems(ferrumc_core_systems::animations::handle_swing_arm_packets);
         s.add_systems(ferrumc_core_systems::animations::handle_player_command_packets);
+        s.add_systems(ferrumc_core_systems::animations::handle_player_input_packets);
         s.add_systems(ferrumc_core_systems::blocks::handle_place_block_packets);
         s.add_systems(ferrumc_core_systems::blocks::handle_player_action_packets);
         s.add_systems(ferrumc_core_systems::chat::handle_chat_packets);

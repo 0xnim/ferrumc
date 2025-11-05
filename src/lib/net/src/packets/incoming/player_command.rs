@@ -15,13 +15,11 @@ pub struct PlayerCommandPacket {
 #[net(type_cast = "VarInt", type_cast_handler = "value.0 as u8")]
 #[repr(u8)]
 pub enum PlayerCommandAction {
-    StartSneaking = 0,
-    StopSneaking = 1,
-    LeaveBed = 2,
-    StartSprinting = 3,
-    StopSprinting = 4,
-    StartJumpWithHorse = 5,
-    StopJumpWithHorse = 6,
-    OpenVehicleInventory = 7,
-    StartFlyingWithElytra = 8,
+    LeaveBed = 0,
+    StartSprinting = 1,
+    StopSprinting = 2,
+    StartJumpWithHorse = 3,
+    StopJumpWithHorse = 4,
+    OpenVehicleInventory = 5,
+    StartFlyingWithElytra = 6,
 }

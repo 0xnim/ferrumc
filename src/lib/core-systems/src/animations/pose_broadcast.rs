@@ -22,14 +22,20 @@ pub fn broadcast_pose_changes(
                 EntityMetadata::entity_sneaking_visual(),
                 EntityMetadata::entity_sneaking_pressed(),
             ],
-            EntityPose::Sprinting => {
-                // TODO: Implement sprinting metadata when available
-                continue;
-            }
-            EntityPose::Swimming | EntityPose::Sleeping | EntityPose::FlyingWithElytra => {
-                // TODO: Implement other poses when needed
-                continue;
-            }
+            // Sprinting is only a state bit (0x08), keeps Standing pose
+            EntityPose::Sprinting => vec![
+                EntityMetadata::entity_standing(),
+                EntityMetadata::entity_sprinting(),
+            ],
+            EntityPose::Swimming => vec![
+                EntityMetadata::entity_swimming_pose(),
+                EntityMetadata::entity_swimming_state(),
+            ],
+            EntityPose::Sleeping => vec![EntityMetadata::entity_sleeping()],
+            EntityPose::FlyingWithElytra => vec![
+                EntityMetadata::entity_elytra_pose(),
+                EntityMetadata::entity_elytra_state(),
+            ],
         };
 
         let packet = EntityMetadataPacket::new(request.entity_id, metadata);

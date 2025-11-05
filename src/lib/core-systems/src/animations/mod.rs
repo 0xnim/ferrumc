@@ -7,9 +7,11 @@
 mod broadcast;
 mod packet_handlers;
 mod player_command_handler;
+mod player_input_handler;
 mod pose_broadcast;
 
 pub use broadcast::*;
 pub use packet_handlers::*;
 pub use player_command_handler::*;
+pub use player_input_handler::*;
 pub use pose_broadcast::*;

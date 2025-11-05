@@ -6,7 +6,7 @@ use ferrumc_core::conn::force_player_recount_event::ForcePlayerRecountEvent;
 use ferrumc_net::packets::packet_events::TransformEvent;
 
 // Domain API events
-use ferrumc_animation_api::{PlayAnimationRequest, PlayerCommandEvent, PlayerSwingArmEvent, SetEntityPoseRequest};
+use ferrumc_animation_api::{PlayAnimationRequest, PlayerCommandEvent, PlayerInputEvent, PlayerSwingArmEvent, SetEntityPoseRequest};
 use ferrumc_block_api::{BlockBreakAttemptEvent, BlockPlaceAttemptEvent, BreakBlockRequest, PlaceBlockRequest, SendBlockChangeAckRequest, SendBlockUpdateRequest};
 use ferrumc_chat_api::{ChatMessageEvent, SendChatMessageRequest};
 use ferrumc_inventory_api::{SendInventoryUpdateRequest, SetCreativeSlotEvent, SetHeldItemEvent};
@@ -27,6 +27,7 @@ pub fn register_events(world: &mut World) {
     // Animation API events
     EventRegistry::register_event::<PlayerSwingArmEvent>(world);
     EventRegistry::register_event::<PlayerCommandEvent>(world);
+    EventRegistry::register_event::<PlayerInputEvent>(world);
     EventRegistry::register_event::<PlayAnimationRequest>(world);
     EventRegistry::register_event::<SetEntityPoseRequest>(world);
     

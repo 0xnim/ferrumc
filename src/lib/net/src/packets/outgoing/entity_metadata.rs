@@ -89,6 +89,60 @@ pub mod constructors {
                 EntityMetadataValue::Entity6(EntityPose::Standing),
             )
         }
+
+        /// Entity in sprinting state
+        pub fn entity_sprinting() -> Self {
+            Self::new(
+                EntityMetadataIndexType::Byte,
+                EntityMetadataValue::Entity0(EntityStateMask::from_state(
+                    EntityState::Sprinting,
+                )),
+            )
+        }
+
+        /// Entity in swimming pose
+        pub fn entity_swimming_pose() -> Self {
+            Self::new(
+                EntityMetadataIndexType::Pose,
+                EntityMetadataValue::Entity6(EntityPose::Swimming),
+            )
+        }
+
+        /// Entity in swimming state (bit mask)
+        pub fn entity_swimming_state() -> Self {
+            Self::new(
+                EntityMetadataIndexType::Byte,
+                EntityMetadataValue::Entity0(EntityStateMask::from_state(
+                    EntityState::Swimming,
+                )),
+            )
+        }
+
+        /// Entity in sleeping pose
+        pub fn entity_sleeping() -> Self {
+            Self::new(
+                EntityMetadataIndexType::Pose,
+                EntityMetadataValue::Entity6(EntityPose::Sleeping),
+            )
+        }
+
+        /// Entity flying with elytra (pose)
+        pub fn entity_elytra_pose() -> Self {
+            Self::new(
+                EntityMetadataIndexType::Pose,
+                EntityMetadataValue::Entity6(EntityPose::FallFlying),
+            )
+        }
+
+        /// Entity flying with elytra (state bit mask)
+        pub fn entity_elytra_state() -> Self {
+            Self::new(
+                EntityMetadataIndexType::Byte,
+                EntityMetadataValue::Entity0(EntityStateMask::from_state(
+                    EntityState::FlyingWithElytra,
+                )),
+            )
+        }
     }
 }
 

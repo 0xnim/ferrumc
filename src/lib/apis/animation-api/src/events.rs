@@ -31,6 +31,26 @@ pub struct PlayerCommandEvent {
     pub jump_boost: VarInt,
 }
 
+/// High-level event: Player input state changed
+///
+/// Emitted by core when a PlayerInputPacket is received.
+/// Contains movement and control flags (jump, sneak, sprint).
+#[derive(Event, Clone, Debug)]
+pub struct PlayerInputEvent {
+    /// The player entity
+    pub player: Entity,
+    /// Entity ID from the packet (for network purposes)
+    pub entity_id: VarInt,
+    /// Raw flags byte
+    pub flags: u8,
+    /// Whether the player is jumping
+    pub is_jumping: bool,
+    /// Whether the player is sneaking
+    pub is_sneaking: bool,
+    /// Whether the player is sprinting
+    pub is_sprinting: bool,
+}
+
 /// Request to play an animation for an entity
 ///
 /// Emitted by plugins when they want to trigger an animation.

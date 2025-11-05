@@ -4,10 +4,10 @@
 
 use ferrumc_plugin_api::prelude::*;
 use ferrumc_animation_api::{
-    AnimationAPI, AnimationType, EntityPose, PlayerCommandEvent, PlayerSwingArmEvent,
-    PlayAnimationRequest, SetEntityPoseRequest,
+    AnimationAPI, AnimationType, EntityPose, PlayerCommandEvent, PlayerInputEvent,
+    PlayerSwingArmEvent,
 };
-use tracing::trace;
+use tracing::{debug, trace};
 
 #[derive(Default)]
 pub struct VanillaAnimationsPlugin;
@@ -44,7 +44,8 @@ impl Plugin for VanillaAnimationsPlugin {
 
         ctx.systems()
             .add_tick(handle_swing_arm)
-            .add_tick(handle_player_command);
+            .add_tick(handle_player_command)
+            .add_tick(handle_player_input);
 
         trace!("Vanilla-animations plugin loaded successfully");
     }
@@ -80,18 +81,45 @@ fn handle_player_command(
     for event in events.read() {
         use ferrumc_animation_api::PlayerCommand;
         
+        debug!("Received player command: {:?}", event.command);
+        
         let pose = match event.command {
-            PlayerCommand::StartSneaking => EntityPose::Sneaking,
-            PlayerCommand::StopSneaking => EntityPose::Standing,
             PlayerCommand::StartSprinting => EntityPose::Sprinting,
             PlayerCommand::StopSprinting => EntityPose::Standing,
             PlayerCommand::StartFlyingWithElytra => EntityPose::FlyingWithElytra,
-            _ => continue,
+            _ => {
+                debug!("Ignoring command: {:?}", event.command);
+                continue;
+            }
         };
         
         // Vanilla: Broadcast to all players except the one who changed pose
         api.set_pose_except(event.player, event.entity_id, pose, event.player);
         
-        trace!("Set pose {:?} for player {}", pose, event.player.index());
+        debug!("Set pose {:?} for player {}", pose, event.player.index());
+    }
+}
+
+fn handle_player_input(
+    mut events: EventReader<PlayerInputEvent>,
+    mut api: AnimationAPI,
+) {
+    for event in events.read() {
+        // Set pose based on sneak state
+        let pose = if event.is_sneaking {
+            EntityPose::Sneaking
+        } else {
+            EntityPose::Standing
+        };
+        
+        // Vanilla: Broadcast to all players except the one who changed pose
+        api.set_pose_except(event.player, event.entity_id, pose, event.player);
+        
+        debug!(
+            "Player {} {} sneaking (flags: 0x{:02X})",
+            event.player.index(),
+            if event.is_sneaking { "started" } else { "stopped" },
+            event.flags
+        );
     }
 }

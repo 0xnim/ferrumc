@@ -14,8 +14,6 @@ pub fn handle_player_command_packets(
 ) {
     for (packet, entity) in packets.0.try_iter() {
         let command = match packet.action {
-            PlayerCommandAction::StartSneaking => PlayerCommand::StartSneaking,
-            PlayerCommandAction::StopSneaking => PlayerCommand::StopSneaking,
             PlayerCommandAction::LeaveBed => PlayerCommand::LeaveBed,
             PlayerCommandAction::StartSprinting => PlayerCommand::StartSprinting,
             PlayerCommandAction::StopSprinting => PlayerCommand::StopSprinting,
