@@ -37,7 +37,7 @@ pub struct PluginCapabilities {
     /// Access to join/leave API
     pub join_leave_api: bool,
     
-    /// Access to entity API (future)
+    /// Access to entity API (messaging, broadcasting)
     pub entity_api: bool,
     
     /// Access to movement API

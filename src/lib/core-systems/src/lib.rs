@@ -18,6 +18,7 @@ pub mod animations;
 pub mod blocks;
 pub mod chat;
 pub mod commands;
+pub mod entity;
 pub mod inventory;
 pub mod join_leave;
 pub mod movement;

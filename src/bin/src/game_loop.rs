@@ -192,6 +192,8 @@ fn build_timed_scheduler_base() -> Scheduler {
         s.add_systems(ferrumc_core_systems::blocks::broadcast_block_updates);
         s.add_systems(ferrumc_core_systems::blocks::send_block_change_acks);
         s.add_systems(ferrumc_core_systems::chat::broadcast_chat_messages);
+        s.add_systems(ferrumc_core_systems::entity::send_system_messages);
+        s.add_systems(ferrumc_core_systems::entity::broadcast_system_messages);
         s.add_systems(ferrumc_core_systems::inventory::broadcaster::send_inventory_updates);
         s.add_systems(ferrumc_core_systems::join_leave::broadcaster::broadcast_join_messages);
         s.add_systems(ferrumc_core_systems::join_leave::broadcaster::broadcast_leave_messages);
@@ -199,6 +201,7 @@ fn build_timed_scheduler_base() -> Scheduler {
         s.add_systems(ferrumc_core_systems::movement::broadcaster::apply_movement_requests);
         s.add_systems(ferrumc_core_systems::movement::broadcaster::broadcast_movement_updates);
         s.add_systems(ferrumc_core_systems::movement::broadcaster::broadcast_head_rotation);
+        s.add_systems(ferrumc_core_systems::movement::handle_teleport_requests);
         
         // Core I/O layer: block operations (chunk loading/saving)
         s.add_systems(ferrumc_core_systems::blocks::handle_place_block_requests);

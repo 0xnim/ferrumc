@@ -6,11 +6,15 @@ pub struct PermissionCheckEvent {
     pub permission: String,
 }
 
+/// Event emitted when a permission is granted via PermissionsAPI
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Automatically emitted by `PermissionsAPI::set_permission()`.
 #[derive(Event, Clone, Debug)]
 pub struct PermissionGrantedEvent {
-    pub player: Entity,
-    pub permission: String,
-    pub value: bool,
+    pub(crate) player: Entity,
+    pub(crate) permission: String,
+    pub(crate) value: bool,
 }
 
 #[derive(Event, Clone, Debug)]
@@ -19,10 +23,14 @@ pub struct PermissionRevokedEvent {
     pub permission: String,
 }
 
+/// Event emitted when a group is added via PermissionsAPI
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Automatically emitted by `PermissionsAPI::add_group()`.
 #[derive(Event, Clone, Debug)]
 pub struct GroupAddedEvent {
-    pub player: Entity,
-    pub group: String,
+    pub(crate) player: Entity,
+    pub(crate) group: String,
 }
 
 #[derive(Event, Clone, Debug)]

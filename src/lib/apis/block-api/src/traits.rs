@@ -5,6 +5,7 @@ use ferrumc_world::block_state_id::BlockStateId;
 
 use crate::events::{
     BreakBlockRequest, PlaceBlockRequest, SendBlockChangeAckRequest, SendBlockUpdateRequest,
+    BlockPlaceAttemptEvent, BlockBreakAttemptEvent, BlockPlacedEvent, BlockBrokenEvent,
 };
 use ferrumc_net_codec::net_types::var_int::VarInt;
 
@@ -20,17 +21,69 @@ use ferrumc_net_codec::net_types::var_int::VarInt;
 /// use ferrumc_block_api::BlockRequests;
 ///
 /// fn my_system(mut blocks: BlockRequests) {
-///     // Request a block placement (core handles I/O)
-///     blocks.place_block(player, position, block_state, sequence);
+///     // Read block placement attempts
+///     for attempt in blocks.place_attempts() {
+///         // Validate and request placement
+///         blocks.place_block(attempt.player, attempt.position, block_state, attempt.sequence);
+///     }
 /// }
 /// ```
 #[derive(SystemParam)]
-pub struct BlockRequests<'w> {
+pub struct BlockRequests<'w, 's> {
+    // Write requests
     place_events: EventWriter<'w, PlaceBlockRequest>,
     break_events: EventWriter<'w, BreakBlockRequest>,
+    
+    // Read input events
+    place_attempt_reader: EventReader<'w, 's, BlockPlaceAttemptEvent>,
+    break_attempt_reader: EventReader<'w, 's, BlockBreakAttemptEvent>,
+    placed_reader: EventReader<'w, 's, BlockPlacedEvent>,
+    broken_reader: EventReader<'w, 's, BlockBrokenEvent>,
 }
 
-impl<'w> BlockRequests<'w> {
+impl<'w, 's> BlockRequests<'w, 's> {
+    // ===== Read Methods (Input Events from Core) =====
+    
+    /// Read block placement attempts from players
+    ///
+    /// Returns an iterator over block placement attempts emitted by core.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// for attempt in blocks.place_attempts() {
+    ///     if validate_placement(&attempt) {
+    ///         blocks.place_block(attempt.player, attempt.position, block_state, attempt.sequence);
+    ///     }
+    /// }
+    /// ```
+    pub fn place_attempts(&mut self) -> impl Iterator<Item = &BlockPlaceAttemptEvent> + '_ {
+    self.place_attempt_reader.read()
+    }
+
+    /// Read block break attempts from players
+    ///
+    /// Returns an iterator over block break attempts emitted by core.
+    pub fn break_attempts(&mut self) -> impl Iterator<Item = &BlockBreakAttemptEvent> + '_ {
+    self.break_attempt_reader.read()
+    }
+
+    /// Read successful block placements
+    ///
+    /// Returns an iterator over blocks that were successfully placed.
+    pub fn placed_blocks(&mut self) -> impl Iterator<Item = &BlockPlacedEvent> + '_ {
+    self.placed_reader.read()
+    }
+
+    /// Read successful block breaks
+    ///
+    /// Returns an iterator over blocks that were successfully broken.
+    pub fn broken_blocks(&mut self) -> impl Iterator<Item = &BlockBrokenEvent> + '_ {
+    self.broken_reader.read()
+    }
+    
+    // ===== Write Methods (Requests to Core) =====
+    
     /// Request to place a block (core handles chunk I/O)
     ///
     /// This should be called after validation logic in plugins.
@@ -123,4 +176,4 @@ impl<'w> BlockBroadcasts<'w> {
 /// Backward compatibility alias
 /// 
 /// Plugins should use BlockRequests for requesting block operations.
-pub type BlockAPI<'w> = BlockRequests<'w>;
+pub type BlockAPI<'w, 's> = BlockRequests<'w, 's>;

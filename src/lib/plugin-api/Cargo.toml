@@ -19,6 +19,9 @@ ferrumc-commands = { path = "../commands" }
 ferrumc-scheduler = { path = "../scheduler" }
 ferrumc-inventories = { path = "../inventories" }
 
+# Domain APIs (for re-exporting common events)
+ferrumc-join-leave-api = { path = "../apis/join-leave-api" }
+
 # Serialization
 serde = { workspace = true }
 toml = { workspace = true }

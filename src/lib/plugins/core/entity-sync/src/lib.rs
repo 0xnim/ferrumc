@@ -10,10 +10,6 @@
 //! - NO validation, NO broadcasting
 
 use ferrumc_plugin_api::prelude::*;
-use ferrumc_movement_api::{
-    ApplyMovementRequest, PlayerMoveAndRotateEvent, PlayerMoveEvent, PlayerRotateEvent,
-};
-use ferrumc_core::chunks::cross_chunk_boundary_event::CrossChunkBoundaryEvent;
 use tracing::trace;
 
 mod position;

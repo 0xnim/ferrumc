@@ -6,9 +6,9 @@ edition = "2021"
 [dependencies]
 ferrumc-plugin-api = { path = "../../../plugin-api" }
 ferrumc-join-leave-api = { path = "../../../apis/join-leave-api" }
+ferrumc-movement-api = { path = "../../../apis/movement-api" }
+ferrumc-core = { path = "../../../core" }
 ferrumc-world = { workspace = true }
-ferrumc-net = { workspace = true }
-bevy_ecs = { workspace = true }
 tracing = { workspace = true }
 
 [lints]

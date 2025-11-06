@@ -57,39 +57,51 @@ pub struct BlockBrokenEvent {
 }
 
 /// Request to broadcast a block update to players
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `BlockBroadcasts::broadcast_block_update()` instead.
 #[derive(Event, Clone)]
 pub struct SendBlockUpdateRequest {
-    pub position: NetworkPosition,
-    pub block: BlockStateId,
-    pub exclude_player: Option<Entity>,
+    pub(crate) position: NetworkPosition,
+    pub(crate) block: BlockStateId,
+    pub(crate) exclude_player: Option<Entity>,
 }
 
 /// Request to send block change acknowledgment to a player
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `BlockBroadcasts::send_ack()` instead.
 #[derive(Event, Clone)]
 pub struct SendBlockChangeAckRequest {
-    pub player: Entity,
-    pub sequence: VarInt,
+    pub(crate) player: Entity,
+    pub(crate) sequence: VarInt,
 }
 
 /// Request to place a block in the world
 ///
-/// This is emitted by plugins after validation.
+/// This is emitted by plugins via BlockRequests after validation.
 /// Core systems handle the actual I/O (chunk loading, saving, broadcasting).
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `BlockRequests::place_block()` instead.
 #[derive(Event, Clone)]
 pub struct PlaceBlockRequest {
-    pub player: Entity,
-    pub position: NetworkPosition,
-    pub block: BlockStateId,
-    pub sequence: VarInt,
+    pub(crate) player: Entity,
+    pub(crate) position: NetworkPosition,
+    pub(crate) block: BlockStateId,
+    pub(crate) sequence: VarInt,
 }
 
 /// Request to break a block in the world
 ///
-/// This is emitted by plugins after validation.
+/// This is emitted by plugins via BlockRequests after validation.
 /// Core systems handle the actual I/O (chunk loading, saving, broadcasting).
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `BlockRequests::break_block()` instead.
 #[derive(Event, Clone)]
 pub struct BreakBlockRequest {
-    pub player: Entity,
-    pub position: NetworkPosition,
-    pub sequence: VarInt,
+    pub(crate) player: Entity,
+    pub(crate) position: NetworkPosition,
+    pub(crate) sequence: VarInt,
 }

@@ -48,6 +48,7 @@ members = [
     "src/lib/apis/join-leave-api",
     "src/lib/apis/movement-api",
     "src/lib/apis/permissions-api",
+    "src/lib/apis/entity-api",
     "src/lib/core-systems",
     "src/lib/plugins/core/entity-sync",
     "src/lib/plugins/core/inventory-sync",
@@ -145,6 +146,7 @@ ferrumc-inventory-api = { path = "src/lib/apis/inventory-api" }
 ferrumc-join-leave-api = { path = "src/lib/apis/join-leave-api" }
 ferrumc-movement-api = { path = "src/lib/apis/movement-api" }
 ferrumc-permissions-api = { path = "src/lib/apis/permissions-api" }
+ferrumc-entity-api = { path = "src/lib/apis/entity-api" }
 
 # Core Systems (I/O layer)
 ferrumc-core-systems = { path = "src/lib/core-systems" }

@@ -2,7 +2,7 @@ use bevy_ecs::prelude::*;
 use bevy_ecs::system::SystemParam;
 use ferrumc_text::TextComponent;
 
-use crate::events::SendChatMessageRequest;
+use crate::events::{SendChatMessageRequest, ChatMessageEvent};
 
 /// Plugin API for sending chat messages
 ///
@@ -17,16 +17,45 @@ use crate::events::SendChatMessageRequest;
 /// use ferrumc_text::TextComponent;
 ///
 /// fn my_system(mut chat: ChatAPI) {
+///     // Read incoming chat messages
+///     for msg in chat.messages() {
+///         // Process message
+///     }
+///     
 ///     // Broadcast message to all players
 ///     chat.broadcast(TextComponent::from("Hello, world!"));
 /// }
 /// ```
 #[derive(SystemParam)]
-pub struct ChatAPI<'w> {
+pub struct ChatAPI<'w, 's> {
+    // Write requests
     events: EventWriter<'w, SendChatMessageRequest>,
+    
+    // Read input events
+    message_reader: EventReader<'w, 's, ChatMessageEvent>,
 }
 
-impl<'w> ChatAPI<'w> {
+impl<'w, 's> ChatAPI<'w, 's> {
+    // ===== Read Methods (Input Events from Core) =====
+    
+    /// Read incoming chat messages from players
+    ///
+    /// Returns an iterator over chat messages emitted by core when players send messages.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// for msg in chat.messages() {
+    ///     let formatted = format!("<{}> {}", msg.player, msg.message);
+    ///     chat.broadcast(formatted.into());
+    /// }
+    /// ```
+    pub fn messages(&mut self) -> impl Iterator<Item = &ChatMessageEvent> + '_ {
+        self.message_reader.read()
+    }
+    
+    // ===== Write Methods (Requests to Core) =====
+    
     /// Send a message to a specific player
     ///
     /// # Arguments

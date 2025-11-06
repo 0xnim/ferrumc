@@ -53,30 +53,29 @@ pub struct PlayerInputEvent {
 
 /// Request to play an animation for an entity
 ///
-/// Emitted by plugins when they want to trigger an animation.
+/// Emitted by plugins via AnimationAPI when they want to trigger an animation.
 /// Core systems listen to this and broadcast the appropriate packets.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `AnimationAPI::play_animation()` instead.
 #[derive(Event, Clone, Debug)]
 pub struct PlayAnimationRequest {
-    /// The entity to animate
-    pub entity: Entity,
-    /// The animation to play
-    pub animation: AnimationType,
-    /// Optionally exclude a player from receiving the broadcast (typically the triggering player)
-    pub exclude_player: Option<Entity>,
+    pub(crate) entity: Entity,
+    pub(crate) animation: AnimationType,
+    pub(crate) exclude_player: Option<Entity>,
 }
 
 /// Request to set an entity's pose/stance
 ///
-/// Emitted by plugins when they want to change an entity's pose.
+/// Emitted by plugins via AnimationAPI when they want to change an entity's pose.
 /// Core systems listen to this and broadcast EntityMetadata packets.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `AnimationAPI::set_pose()` instead.
 #[derive(Event, Clone, Debug)]
 pub struct SetEntityPoseRequest {
-    /// The entity whose pose should change
-    pub entity: Entity,
-    /// Entity ID for the packet
-    pub entity_id: VarInt,
-    /// The new pose
-    pub pose: EntityPose,
-    /// Optionally exclude a player from receiving the broadcast (typically the triggering player)
-    pub exclude_player: Option<Entity>,
+    pub(crate) entity: Entity,
+    pub(crate) entity_id: VarInt,
+    pub(crate) pose: EntityPose,
+    pub(crate) exclude_player: Option<Entity>,
 }

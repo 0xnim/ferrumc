@@ -12,10 +12,10 @@ use tracing::trace;
 /// - Updates Rotation and OnGround components
 /// - Requests ECS update via MovementAPI
 pub fn update_rotation_from_rotate(
-    mut events: EventReader<PlayerRotateEvent>,
     mut api: MovementAPI,
 ) {
-    for event in events.read() {
+    let events: Vec<_> = api.rotate_events().cloned().collect();
+    for event in events {
         // Apply rotation update to ECS
         api.apply_movement(
             event.player,

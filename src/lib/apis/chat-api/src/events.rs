@@ -18,9 +18,12 @@ pub struct ChatMessageEvent {
 }
 
 /// Request to send a chat message to player(s)
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `ChatAPI::send()` or `ChatAPI::broadcast()` instead.
 #[derive(Event, Clone)]
 pub struct SendChatMessageRequest {
-    pub message: TextComponent,
-    pub receiver: Option<Entity>,
-    pub overlay: bool,
+    pub(crate) message: TextComponent,
+    pub(crate) receiver: Option<Entity>,
+    pub(crate) overlay: bool,
 }

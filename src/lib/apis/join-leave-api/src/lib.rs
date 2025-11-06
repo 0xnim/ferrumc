@@ -63,32 +63,28 @@ pub struct PlayerLeaveEvent {
 
 /// Request to send a join message to a specific player
 ///
-/// Plugin sends this to core to broadcast join messages.
+/// Plugin sends this via JoinLeaveAPI to core to broadcast join messages.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `JoinLeaveAPI::send_join_message()` instead.
 #[derive(Event)]
 pub struct SendJoinMessageRequest {
-    /// The player who joined (for reference)
-    pub joining_player: Entity,
-    
-    /// The player who should receive this message
-    pub receiver: Entity,
-    
-    /// The formatted message to send
-    pub message: TextComponent,
+    pub(crate) joining_player: Entity,
+    pub(crate) receiver: Entity,
+    pub(crate) message: TextComponent,
 }
 
 /// Request to send a leave message to a specific player
 ///
-/// Plugin sends this to core to broadcast leave messages.
+/// Plugin sends this via JoinLeaveAPI to core to broadcast leave messages.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `JoinLeaveAPI::send_leave_message()` instead.
 #[derive(Event)]
 pub struct SendLeaveMessageRequest {
-    /// The player who left (for reference)
-    pub leaving_player: Entity,
-    
-    /// The player who should receive this message
-    pub receiver: Entity,
-    
-    /// The formatted message to send
-    pub message: TextComponent,
+    pub(crate) leaving_player: Entity,
+    pub(crate) receiver: Entity,
+    pub(crate) message: TextComponent,
 }
 
 /// JoinLeave API - SystemParam for plugins

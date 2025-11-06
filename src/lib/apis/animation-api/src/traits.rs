@@ -2,7 +2,7 @@ use bevy_ecs::prelude::*;
 use bevy_ecs::system::SystemParam;
 use ferrumc_net_codec::net_types::var_int::VarInt;
 
-use crate::events::{PlayAnimationRequest, SetEntityPoseRequest};
+use crate::events::{PlayAnimationRequest, SetEntityPoseRequest, PlayerSwingArmEvent, PlayerCommandEvent, PlayerInputEvent};
 use crate::types::{AnimationType, EntityPose};
 
 /// Plugin API for triggering animations
@@ -17,17 +17,65 @@ use crate::types::{AnimationType, EntityPose};
 /// use ferrumc_animation_api::{AnimationAPI, AnimationType};
 ///
 /// fn my_system(mut animations: AnimationAPI) {
+///     // Read swing events
+///     for event in animations.swing_events() {
+///         // Handle swing
+///     }
+///     
 ///     // Play animation for an entity
 ///     animations.play_animation(entity, AnimationType::SwingMainArm);
 /// }
 /// ```
 #[derive(SystemParam)]
-pub struct AnimationAPI<'w> {
+pub struct AnimationAPI<'w, 's> {
+    // Write requests
     animation_events: EventWriter<'w, PlayAnimationRequest>,
     pose_events: EventWriter<'w, SetEntityPoseRequest>,
+    
+    // Read input events
+    swing_reader: EventReader<'w, 's, PlayerSwingArmEvent>,
+    command_reader: EventReader<'w, 's, PlayerCommandEvent>,
+    input_reader: EventReader<'w, 's, PlayerInputEvent>,
 }
 
-impl<'w> AnimationAPI<'w> {
+impl<'w, 's> AnimationAPI<'w, 's> {
+    // ===== Read Methods (Input Events from Core) =====
+    
+    /// Read player swing arm events
+    ///
+    /// Returns an iterator over swing events emitted by core when players swing their arm.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// for event in animations.swing_events() {
+    ///     let animation = match event.hand {
+    ///         Hand::Main => AnimationType::SwingMainArm,
+    ///         Hand::Off => AnimationType::SwingOffhand,
+    ///     };
+    ///     animations.play_animation(event.player, animation);
+    /// }
+    /// ```
+    pub fn swing_events(&mut self) -> impl Iterator<Item = &PlayerSwingArmEvent> + '_ {
+        self.swing_reader.read()
+    }
+    
+    /// Read player command events (sneak, sprint, etc.)
+    ///
+    /// Returns an iterator over command events emitted by core.
+    pub fn command_events(&mut self) -> impl Iterator<Item = &PlayerCommandEvent> + '_ {
+        self.command_reader.read()
+    }
+    
+    /// Read player input events (jump, sneak, sprint flags)
+    ///
+    /// Returns an iterator over input events emitted by core.
+    pub fn input_events(&mut self) -> impl Iterator<Item = &PlayerInputEvent> + '_ {
+        self.input_reader.read()
+    }
+    
+    // ===== Write Methods (Requests to Core) =====
+    
     /// Play an animation for an entity, visible to all players
     ///
     /// # Arguments

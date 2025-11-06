@@ -113,21 +113,17 @@ pub struct HeadRotationEvent {
 
 /// Request to apply validated movement
 ///
-/// Plugin sends this after validating movement.
+/// Plugin sends this via MovementAPI after validating movement.
 /// Core updates ECS components and broadcasts.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `MovementAPI::apply_movement()` instead.
 #[derive(Event, Clone)]
 pub struct ApplyMovementRequest {
-    /// The player to update
-    pub player: Entity,
-    
-    /// New position (if changed)
-    pub position: Option<Position>,
-    
-    /// New rotation (if changed)
-    pub rotation: Option<Rotation>,
-    
-    /// On ground state
-    pub on_ground: bool,
+    pub(crate) player: Entity,
+    pub(crate) position: Option<Position>,
+    pub(crate) rotation: Option<Rotation>,
+    pub(crate) on_ground: bool,
 }
 
 /// Type of movement packet to broadcast
@@ -148,46 +144,49 @@ pub enum MovementBroadcastType {
 
 /// Request to broadcast movement to other players
 ///
-/// Plugin sends this after determining what type of broadcast is needed.
+/// Plugin sends this via MovementAPI after determining what type of broadcast is needed.
 /// Core handles the actual packet sending.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `MovementAPI::broadcast_movement_*()` instead.
 #[derive(Event, Clone)]
 pub struct BroadcastMovementRequest {
-    /// The player who moved
-    pub player: Entity,
-    
-    /// Type of broadcast packet to send
-    pub broadcast_type: MovementBroadcastType,
-    
-    /// Position delta for incremental updates (in fixed-point format)
-    pub delta_pos: Option<(i16, i16, i16)>,
-    
-    /// New rotation for rotation updates
-    pub rotation: Option<Rotation>,
-    
-    /// Absolute position for teleport
-    pub position: Option<Position>,
-    
-    /// On ground state
-    pub on_ground: bool,
-    
-    /// Receiver of the broadcast (None = all players, Some = specific player)
-    pub receiver: Option<Entity>,
+    pub(crate) player: Entity,
+    pub(crate) broadcast_type: MovementBroadcastType,
+    pub(crate) delta_pos: Option<(i16, i16, i16)>,
+    pub(crate) rotation: Option<Rotation>,
+    pub(crate) position: Option<Position>,
+    pub(crate) on_ground: bool,
+    pub(crate) receiver: Option<Entity>,
 }
 
 /// Request to broadcast head rotation to other players
 ///
-/// Plugin sends this when head rotation changes.
+/// Plugin sends this via MovementAPI when head rotation changes.
 /// Core handles the actual packet sending.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `MovementAPI::broadcast_head_rotation_*()` instead.
 #[derive(Event, Clone)]
 pub struct BroadcastHeadRotationRequest {
-    /// The player whose head rotated
-    pub player: Entity,
-    
-    /// New head rotation (yaw)
-    pub yaw: f32,
-    
-    /// Receiver of the broadcast (None = all players, Some = specific player)
-    pub receiver: Option<Entity>,
+    pub(crate) player: Entity,
+    pub(crate) yaw: f32,
+    pub(crate) receiver: Option<Entity>,
+}
+
+/// Request to teleport a player to a specific position
+///
+/// Plugin sends this via MovementAPI when a player should be teleported.
+/// Core handles the actual packet sending and ECS state updates.
+///
+/// **NOTE:** This is `pub(crate)` - plugins cannot create this directly.
+/// Use `MovementAPI::teleport()` instead.
+#[derive(Event, Clone)]
+pub struct TeleportPlayerRequest {
+    pub(crate) player: Entity,
+    pub(crate) position: Position,
+    pub(crate) rotation: Option<Rotation>,
+    pub(crate) velocity: Option<(f64, f64, f64)>,
 }
 
 /// Movement API - SystemParam for plugins
@@ -198,19 +197,71 @@ pub struct BroadcastHeadRotationRequest {
 ///
 /// ```rust,no_run
 /// fn my_system(mut api: MovementAPI) {
-///     api.apply_movement(player, Some(new_pos), None, true);
-///     api.broadcast_movement(player, MovementBroadcastType::UpdatePosition, ...);
-///     api.broadcast_head_rotation(player, yaw);
+///     // Read movement events
+///     for event in api.move_events() {
+///         // Validate and apply
+///         api.apply_movement(event.player, Some(event.new_position), None, event.on_ground);
+///     }
 /// }
 /// ```
 #[derive(SystemParam)]
-pub struct MovementAPI<'w> {
+pub struct MovementAPI<'w, 's> {
+    // Write requests
     apply_requests: EventWriter<'w, ApplyMovementRequest>,
     broadcast_requests: EventWriter<'w, BroadcastMovementRequest>,
     head_rotation_requests: EventWriter<'w, BroadcastHeadRotationRequest>,
+    teleport_requests: EventWriter<'w, TeleportPlayerRequest>,
+    
+    // Read input events
+    move_reader: EventReader<'w, 's, PlayerMoveEvent>,
+    rotate_reader: EventReader<'w, 's, PlayerRotateEvent>,
+    move_rotate_reader: EventReader<'w, 's, PlayerMoveAndRotateEvent>,
+    head_rotation_reader: EventReader<'w, 's, HeadRotationEvent>,
 }
 
-impl<'w> MovementAPI<'w> {
+impl<'w, 's> MovementAPI<'w, 's> {
+    // ===== Read Methods (Input Events from Core) =====
+    
+    /// Read player move events (position change only)
+    ///
+    /// Returns an iterator over movement events emitted by core.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// for event in api.move_events() {
+    ///     if validate_movement(&event.old_position, &event.new_position) {
+    ///         api.apply_movement(event.player, Some(event.new_position), None, event.on_ground);
+    ///     }
+    /// }
+    /// ```
+    pub fn move_events(&mut self) -> impl Iterator<Item = &PlayerMoveEvent> + '_ {
+        self.move_reader.read()
+    }
+    
+    /// Read player rotate events (rotation change only)
+    ///
+    /// Returns an iterator over rotation events emitted by core.
+    pub fn rotate_events(&mut self) -> impl Iterator<Item = &PlayerRotateEvent> + '_ {
+        self.rotate_reader.read()
+    }
+    
+    /// Read player move and rotate events (both position and rotation change)
+    ///
+    /// Returns an iterator over combined movement events emitted by core.
+    pub fn move_and_rotate_events(&mut self) -> impl Iterator<Item = &PlayerMoveAndRotateEvent> + '_ {
+        self.move_rotate_reader.read()
+    }
+    
+    /// Read head rotation events
+    ///
+    /// Returns an iterator over head rotation events emitted by core.
+    pub fn head_rotation_events(&mut self) -> impl Iterator<Item = &HeadRotationEvent> + '_ {
+        self.head_rotation_reader.read()
+    }
+    
+    // ===== Write Methods (Requests to Core) =====
+    
     /// Apply validated movement
     ///
     /// # Example
@@ -339,6 +390,47 @@ impl<'w> MovementAPI<'w> {
             player,
             yaw,
             receiver: Some(receiver),
+        });
+    }
+
+    /// Teleport a player to a specific position
+    ///
+    /// This sends a SynchronizePlayerPosition packet and updates the ECS state.
+    /// Use this for spawn teleports, warps, respawns, etc.
+    ///
+    /// # Arguments
+    ///
+    /// * `player` - The entity to teleport
+    /// * `position` - The target position
+    /// * `rotation` - Optional rotation (defaults to current rotation if None)
+    /// * `velocity` - Optional velocity (defaults to zero if None)
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// // Teleport to spawn
+    /// api.teleport(player, Position::new(0.0, 64.0, 0.0), None, None);
+    ///
+    /// // Teleport with rotation
+    /// api.teleport(
+    ///     player,
+    ///     Position::new(100.0, 64.0, 100.0),
+    ///     Some(Rotation { yaw: 0.0, pitch: 0.0 }),
+    ///     None
+    /// );
+    /// ```
+    pub fn teleport(
+        &mut self,
+        player: Entity,
+        position: Position,
+        rotation: Option<Rotation>,
+        velocity: Option<(f64, f64, f64)>,
+    ) {
+        self.teleport_requests.write(TeleportPlayerRequest {
+            player,
+            position,
+            rotation,
+            velocity,
         });
     }
 }

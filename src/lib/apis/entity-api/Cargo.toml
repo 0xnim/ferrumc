@@ -1,0 +1,12 @@
+[package]
+name = "ferrumc-entity-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+ferrumc-core = { path = "../../core" }
+ferrumc-text = { path = "../../text" }
+
+[lints]
+workspace = true

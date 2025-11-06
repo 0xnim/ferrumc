@@ -3,13 +3,12 @@
 //! Ensures players don't spawn inside blocks by checking their spawn position
 //! and teleporting them to a safe location if needed.
 
-use bevy_ecs::prelude::*;
 use ferrumc_plugin_api::prelude::*;
 use ferrumc_join_leave_api::PlayerJoinEvent;
-use ferrumc_net::connection::StreamWriter;
-use ferrumc_net::packets::outgoing::synchronize_player_position::SynchronizePlayerPositionPacket;
+use ferrumc_movement_api::MovementAPI;
+use ferrumc_core::transform::position::Position;
 use ferrumc_world::block_state_id::BlockStateId;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
 #[derive(Default)]
 pub struct VanillaSpawnSafetyPlugin;
@@ -39,6 +38,7 @@ impl Plugin for VanillaSpawnSafetyPlugin {
         PluginCapabilities::builder()
             .with_entity_queries()
             .with_world_queries()
+            .with_movement_api()
             .build()
     }
 
@@ -51,7 +51,7 @@ fn check_spawn_safety(
     mut events: EventReader<PlayerJoinEvent>,
     entities: EntityQueries,
     world: WorldQueries,
-    mut writers: Query<&mut StreamWriter>,
+    mut movement: MovementAPI,
 ) {
     for event in events.read() {
         let Some(pos) = entities.position(event.joining_player) else {
@@ -88,25 +88,14 @@ fn check_spawn_safety(
                     block_id
                 );
                 
-                // Teleport the player to the world center (spawn)
-                let Ok(conn) = writers.get_mut(event.joining_player) else {
-                    warn!("Could not get StreamWriter for player {:?}", event.joining_player);
-                    continue;
-                };
+                // Teleport the player to the world center (spawn) using MovementAPI
+                let spawn_position = Position::new(0.0, 64.0, 0.0);
+                movement.teleport(event.joining_player, spawn_position, None, None);
                 
-                let packet = SynchronizePlayerPositionPacket::default();
-                if let Err(e) = conn.send_packet_ref(&packet) {
-                    error!(
-                        "Failed to send synchronize player position packet for player {}: {:?}",
-                        event.identity.username,
-                        e
-                    );
-                } else {
-                    info!(
-                        "Sent synchronize player position packet for player {}",
-                        event.identity.username
-                    );
-                }
+                info!(
+                    "Teleported player {} to spawn position",
+                    event.identity.username
+                );
             }
             None => {
                 warn!(

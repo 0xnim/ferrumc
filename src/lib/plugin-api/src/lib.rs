@@ -43,9 +43,15 @@ mod tests;
 pub use build_context::{EventRegistry, PluginBuildContext, SystemRegistry};
 pub use capabilities::{PluginCapabilities, PluginCapabilitiesBuilder, ResourceCapability};
 pub use context::{PluginConfig, PluginContext};
-pub use entity::EntityExt;
 pub use queries::{EntityQueries, InventoryQueries, InventoryQueriesMut, WorldQueries};
-pub use world::WorldExt;
+
+// IMPORTANT: EntityExt and WorldExt are NOT exported for plugins!
+// They provide direct network/database access which violates separation of concerns.
+// Use EntityAPI and domain-specific APIs instead.
+// 
+// If you're in core-systems and need these, import them explicitly:
+// use ferrumc_plugin_api::entity::EntityExt;
+// use ferrumc_plugin_api::world::WorldExt;
 
 /// Trait that all plugins must implement.
 ///
