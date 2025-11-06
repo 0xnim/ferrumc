@@ -3,6 +3,7 @@
 use ferrumc_plugin_api::PluginBuildContext;
 
 pub mod communication;
+mod permissions;
 
 /// Register all command handlers
 pub fn register(_ctx: &mut PluginBuildContext<'_>) {

@@ -61,7 +61,7 @@ pub fn connection_killer(
         }
         
         // Fire PlayerLeaveEvent for plugins to handle
-        leave_events.send(PlayerLeaveEvent {
+        leave_events.write(PlayerLeaveEvent {
             leaving_player: disconnecting_entity,
             identity: disconnecting_player_identity,
             reason,

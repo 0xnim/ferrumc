@@ -99,6 +99,17 @@ impl<'a> PluginBuildContext<'a> {
     pub fn capabilities(&self) -> &PluginCapabilities {
         &self.capabilities
     }
+    
+    /// Insert a resource into the world
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// ctx.insert_resource(MyResource::default());
+    /// ```
+    pub fn insert_resource<R: Resource>(&mut self, resource: R) {
+        self.events.world.insert_resource(resource);
+    }
 }
 
 /// System registration API

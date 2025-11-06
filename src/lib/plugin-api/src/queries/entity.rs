@@ -212,4 +212,20 @@ impl<'w, 's> EntityQueries<'w, 's> {
             )
         })
     }
+    
+    /// Find a player by username
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// if let Some((entity, identity)) = entities.find_player_by_name("Notch") {
+    ///     println!("Found {} with entity {:?}", identity.username, entity);
+    /// }
+    /// ```
+    pub fn find_player_by_name(&self, username: &str) -> Option<(Entity, &PlayerIdentity)> {
+        self.players
+            .iter()
+            .find(|(_, _, identity)| identity.username == username)
+            .map(|(entity, _, identity)| (entity, identity))
+    }
 }

@@ -38,7 +38,8 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     let (shutdown_send, shutdown_recv) = tokio::sync::oneshot::channel();
     let (shutdown_response_send, shutdown_response_recv) = crossbeam_channel::unbounded();
 
-    ferrumc_default_commands::init();
+    // Commands are now registered via the #[command] macro using #[ctor]
+    // No manual init needed
 
     // Register events/resources (one-time into World)
     let global_state_res = GlobalStateResource(global_state.clone());

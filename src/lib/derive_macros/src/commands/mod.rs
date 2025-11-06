@@ -14,12 +14,26 @@ struct Arg {
 
 struct CommandAttr {
     name: String,
+    permission: Option<String>,
 }
 
 impl Parse for CommandAttr {
     fn parse(input: ParseStream) -> SynResult<Self> {
         let name = input.parse::<LitStr>()?.value();
-        Ok(CommandAttr { name })
+        
+        let mut permission = None;
+        if input.peek(syn::Token![,]) {
+            input.parse::<syn::Token![,]>()?;
+            if input.peek(syn::Ident) {
+                let ident = input.parse::<syn::Ident>()?;
+                if ident == "permission" {
+                    input.parse::<syn::Token![=]>()?;
+                    permission = Some(input.parse::<LitStr>()?.value());
+                }
+            }
+        }
+        
+        Ok(CommandAttr { name, permission })
     }
 }
 
@@ -188,6 +202,10 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let ctor_fn_name = format_ident!("__{}_register", fn_name);
     let command_name = command_attr.name;
+    let command_permission = match command_attr.permission {
+        Some(perm) => quote! { Some(#perm) },
+        None => quote! { None },
+    };
 
     let command_args = args
         .iter()
@@ -247,6 +265,7 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
             ferrumc_commands::infrastructure::register_command(std::sync::Arc::new(ferrumc_commands::Command {
                 name: #command_name,
                 args: vec![#(#command_args)*],
+                permission: #command_permission,
             }));
         }
     })

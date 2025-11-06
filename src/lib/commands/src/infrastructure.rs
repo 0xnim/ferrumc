@@ -68,3 +68,8 @@ pub fn find_command(input: &str) -> Option<Arc<Command>> {
         None
     }
 }
+
+/// Gets all registered commands.
+pub fn get_all_commands() -> Vec<Arc<Command>> {
+    COMMANDS.iter().map(|entry| Arc::clone(entry.value())).collect()
+}

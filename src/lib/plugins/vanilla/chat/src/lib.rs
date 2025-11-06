@@ -53,20 +53,26 @@ fn handle_chat_messages(
     mut api: ChatAPI,
     entities: EntityQueries,
 ) {
+    if events.is_empty() {
+        return;
+    }
+
+    // Collect players once to avoid O(N²) iteration
+    let players: Vec<_> = entities.iter_players()
+        .map(|(entity, _, _)| entity)
+        .collect();
+    
     for event in events.read() {
-        // Get player's username
         let username = entities.identity(event.player)
             .map(|id| id.username.as_str())
             .unwrap_or("Unknown");
         
-        // Vanilla: Format as "<username> message"
         let formatted = TextComponent::from(format!(
             "<{}> {}",
             username, event.message
         ));
         
-        // Broadcast to all players
-        for (player, _, _) in entities.iter_players() {
+        for &player in &players {
             api.send(player, formatted.clone());
         }
         

@@ -7,6 +7,7 @@ use ferrumc_commands::{
 };
 use ferrumc_core::mq;
 use ferrumc_net::ChatCommandPacketReceiver;
+use ferrumc_permissions_api::PermissionsAPI;
 use ferrumc_text::{NamedColor, TextComponent, TextComponentBuilder};
 
 fn resolve(
@@ -41,6 +42,7 @@ pub fn handle(
     events: Res<ChatCommandPacketReceiver>,
     mut dispatch_events: EventWriter<CommandDispatchEvent>,
     mut resolved_dispatch_events: EventWriter<ResolvedCommandDispatchEvent>,
+    permissions: PermissionsAPI,
 ) {
     for (event, entity) in events.0.try_iter() {
         let sender = Sender::Player(entity);
@@ -56,6 +58,23 @@ pub fn handle(
             }
 
             Ok((command, ctx)) => {
+                if let Some(required_permission) = command.permission {
+                    let has_perm = match sender {
+                        Sender::Player(player_entity) => {
+                            permissions.has_permission(player_entity, required_permission)
+                        }
+                        Sender::Server => true,
+                    };
+
+                    if !has_perm {
+                        let error = TextComponentBuilder::new("You don't have permission to use this command")
+                            .color(NamedColor::Red)
+                            .build();
+                        mq::queue(error, false, entity);
+                        continue;
+                    }
+                }
+
                 resolved_dispatch_events.write(ResolvedCommandDispatchEvent {
                     command,
                     ctx,

@@ -231,6 +231,7 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     // Core plugins (state synchronization - NO broadcasting)
     registry.register::<ferrumc_plugin_entity_sync::EntitySyncPlugin>();
     registry.register::<ferrumc_plugin_inventory_sync::InventorySyncPlugin>();
+    registry.register::<ferrumc_permissions::PermissionsPlugin>();
     
     // Vanilla plugins (game logic + broadcasting)
     registry.register::<ferrumc_plugin_vanilla_movement::VanillaMovementPlugin>();

@@ -13,6 +13,7 @@ ferrumc-plugin-api = { workspace = true }
 # Domain APIs
 ferrumc-chat-api = { workspace = true }
 ferrumc-commands-api = { workspace = true }
+ferrumc-permissions-api = { workspace = true }
 
 # Core types
 ferrumc-core = { workspace = true }

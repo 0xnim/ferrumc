@@ -1,0 +1,11 @@
+[package]
+name = "ferrumc-permissions-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs.workspace = true
+ferrumc-core.workspace = true
+
+[lints]
+workspace = true

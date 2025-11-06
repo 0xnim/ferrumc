@@ -29,6 +29,9 @@ pub struct Command {
 
     /// All possible arguments this command can take.
     pub args: Vec<CommandArgumentNode>,
+
+    /// Required permission to execute this command (e.g., "minecraft.command.gamemode")
+    pub permission: Option<&'static str>,
 }
 
 /// A command suggestion.
@@ -56,5 +59,6 @@ pub static ROOT_COMMAND: LazyLock<Arc<Command>> = LazyLock::new(|| {
     Arc::new(Command {
         name: "",
         args: Vec::new(),
+        permission: None,
     })
 });

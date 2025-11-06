@@ -39,9 +39,11 @@ ferrumc-commands-api = { workspace = true }
 ferrumc-inventory-api = { workspace = true }
 ferrumc-join-leave-api = { workspace = true }
 ferrumc-movement-api = { workspace = true }
+ferrumc-permissions-api = { workspace = true }
 ferrumc-plugin-hello = { path = "../lib/plugins/examples/hello" }
 ferrumc-plugin-entity-sync = { path = "../lib/plugins/core/entity-sync" }
 ferrumc-plugin-inventory-sync = { path = "../lib/plugins/core/inventory-sync" }
+ferrumc-permissions = { path = "../lib/plugins/core/permissions" }
 ferrumc-plugin-vanilla-movement = { path = "../lib/plugins/vanilla/movement" }
 ferrumc-plugin-vanilla-blocks = { path = "../lib/plugins/vanilla/blocks" }
 ferrumc-plugin-vanilla-chat = { path = "../lib/plugins/vanilla/chat" }
