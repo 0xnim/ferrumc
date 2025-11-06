@@ -20,6 +20,7 @@ ferrumc-core = { workspace = true }
 ferrumc-text = { workspace = true }
 ferrumc-commands = { workspace = true }
 ferrumc-macros = { workspace = true }
+ferrumc-config = { workspace = true }
 ctor = { workspace = true }
 
 [lints]
