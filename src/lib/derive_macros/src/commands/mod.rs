@@ -159,9 +159,16 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
         .iter()
         .map(|(pat, ty)| {
             // Preserve the full pattern including `mut`
-            quote! { #pat: #ty, }
+            quote! { #pat: #ty }
         })
         .collect::<Vec<proc_macro2::TokenStream>>();
+    let system_types_state: Vec<_> = bevy_args
+        .iter()
+        .map(|(_, ty)| {
+            // For SystemState, we need to use 'static, 'static for all SystemParams
+            quote! { <#ty as bevy_ecs::system::SystemParam>::Item<'static, 'static> }
+        })
+        .collect();
     let system_arg_pats = bevy_args
         .clone()
         .iter()
@@ -179,20 +186,26 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
         .clone()
         .iter()
         .map(|arg| {
+            let arg_name = format_ident!("__arg_{}", &arg.name);
             let name = &arg.name;
             let ty = syn::parse_str::<Type>(&arg.ty).expect("invalid arg type");
 
             quote! {
-                match ctx.arg::<#ty>(#name) {
+                let #arg_name: #ty = match __ctx.arg::<#ty>(#name) {
                     Ok(a) => a,
                     Err(err) => {
                         // TODO: Send error message via ChatAPI
-                        return;
+                        continue;
                     }
-                },
+                };
             }
         })
         .collect::<Vec<proc_macro2::TokenStream>>();
+    
+    let arg_names = args
+        .iter()
+        .map(|arg| format_ident!("__arg_{}", &arg.name))
+        .collect::<Vec<_>>();
 
     let sender_param = if has_sender_arg {
         quote! { sender.clone(), }
@@ -227,15 +240,15 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let call = if has_sender_arg && sender_arg_before_cmd_args {
         quote! {
-            #fn_name(#sender_param #(#arg_extractors)* #(#system_arg_pats),*);
+            #fn_name(#sender_param #(#arg_names,)* #(#system_arg_pats),*);
         }
     } else if has_sender_arg {
         quote! {
-            #fn_name(#(#arg_extractors)* #sender_param #(#system_arg_pats),*);
+            #fn_name(#(#arg_names,)* #sender_param #(#system_arg_pats),*);
         }
     } else {
         quote! {
-            #fn_name(#(#arg_extractors)* #(#system_arg_pats),*);
+            #fn_name(#(#arg_names,)* #(#system_arg_pats),*);
         }
     };
 
@@ -246,14 +259,59 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
         #input_fn
 
         #[allow(non_snake_case)]
-        #[allow(unused_variables)] // if there is no sender arg
+        #[allow(unused_variables)]
         #[doc(hidden)]
-        fn #system_name(mut __events: bevy_ecs::prelude::EventMutator<ferrumc_commands::events::ResolvedCommandDispatchEvent>, #(#system_args)*) {
-            for ferrumc_commands::events::ResolvedCommandDispatchEvent { command: __command, ctx, sender } in __events.read() {
-                if __command.name == #command_name {
+        fn #system_name(world: &mut bevy_ecs::world::World) {
+            use std::sync::Mutex;
+            static EVENT_STATE: std::sync::OnceLock<Mutex<bevy_ecs::system::SystemState<
+                bevy_ecs::event::EventReader<'static, 'static, ferrumc_commands::events::ResolvedCommandDispatchEvent>
+            >>> = std::sync::OnceLock::new();
+            
+            let event_state_lock = EVENT_STATE.get_or_init(|| {
+                Mutex::new(bevy_ecs::system::SystemState::new(world))
+            });
+            let mut event_state = event_state_lock.lock().expect("Failed to lock event state");
+            
+            // Collect matching events (EventReader auto-drains as we iterate)
+            let to_run: Vec<_> = {
+                let mut events = event_state.get_mut(world);
+                events
+                    .read()
+                    .filter(|e| e.command.name == #command_name)
+                    .map(|e| (e.command.clone(), e.input.clone(), e.sender.clone()))
+                    .collect()
+            };
+            event_state.apply(world);
+            
+            // Early exit if no events
+            if to_run.is_empty() {
+                return;
+            }
+
+            // Handle each event
+            for (__command, __input, sender) in to_run {
+                // Parse arguments with CommandContext
+                let __command_input = ferrumc_commands::CommandInput::of(__input);
+                let mut __ctx = ferrumc_commands::CommandContext {
+                    input: __command_input,
+                    command: __command.clone(),
+                    sender: sender.clone(),
+                    world,
+                };
+
+                // Extract command arguments
+                #(#arg_extractors)*
+
+                drop(__ctx); // Release &mut World borrow
+
+                // Fetch Bevy system parameters and call handler
+                let mut params_state: bevy_ecs::system::SystemState<(#(#system_types_state,)*)> = 
+                    bevy_ecs::system::SystemState::new(world);
+                {
+                    let (#(#system_arg_pats,)*) = params_state.get_mut(world);
                     #call
-                    return // this is due to ownership issues
                 }
+                params_state.apply(world);
             }
         }
 

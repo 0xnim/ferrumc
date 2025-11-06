@@ -6,6 +6,8 @@ use primitive::PrimitiveArgument;
 use crate::{ctx::CommandContext, Suggestion};
 
 pub mod duration;
+pub mod entity;
+pub mod position;
 pub mod primitive;
 
 pub type ParserResult<T> = Result<T, Box<TextComponent>>;
@@ -19,7 +21,7 @@ where
     Self: Sized,
 {
     /// Parses the argument from a command context and returns the value or a text error.
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self>;
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self>;
 
     /// Returns the primitive argument type of this argument. This represents the
     /// vanilla parser sent to the client for client-side validation.
@@ -29,7 +31,7 @@ where
     /// This is called every time the client enters or removes a character.
     ///
     /// **Make sure to consume the input in here, even if you are not suggesting anything**.
-    fn suggest(ctx: &mut CommandContext) -> Vec<Suggestion> {
+    fn suggest(ctx: &mut CommandContext<'_>) -> Vec<Suggestion> {
         ctx.input.read_string();
         vec![]
     }
@@ -39,7 +41,7 @@ impl<T> CommandArgument for Option<T>
 where
     T: CommandArgument + Sized,
 {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         if ctx.input.has_remaining_input() {
             T::parse(ctx).map(|t| Some(t))
         } else {
@@ -68,7 +70,7 @@ pub struct CommandArgumentNode {
     pub primitive: PrimitiveArgument,
 
     /// Suggests autocomplete options for this argument.
-    pub suggester: fn(&mut CommandContext) -> Vec<Suggestion>,
+    pub suggester: fn(&mut CommandContext<'_>) -> Vec<Suggestion>,
 }
 
 impl PartialEq for CommandArgumentNode {

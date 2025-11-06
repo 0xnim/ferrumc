@@ -47,30 +47,23 @@ fn find_command(input: String) -> Option<Arc<Command>> {
     None
 }
 
-fn create_ctx(input: String, command: Option<Arc<Command>>, sender: Sender) -> CommandContext {
-    let input = input
-        .strip_prefix(command.clone().map(|c| c.name).unwrap_or_default())
-        .unwrap_or(&input)
-        .trim_start();
+pub fn handle(world: &mut bevy_ecs::world::World) {
+    let mut system_state: bevy_ecs::system::SystemState<(
+        Res<CommandSuggestionRequestReceiver>,
+        Query<&StreamWriter>,
+        Res<GlobalStateResource>,
+    )> = bevy_ecs::system::SystemState::new(world);
 
-    let input = CommandInput::of(input.to_string());
-    CommandContext {
-        input: input.clone(),
-        command: command.unwrap_or(ROOT_COMMAND.clone()),
-        sender,
-    }
-}
+    // Collect all pending suggestions first
+    let suggestions_to_process: Vec<_> = {
+        let (events, _, state) = system_state.get_mut(world);
+        events.0.try_iter()
+            .filter(|(_, entity)| state.0.players.is_connected(*entity))
+            .collect()
+    };
+    system_state.apply(world);
 
-pub fn handle(
-    events: Res<CommandSuggestionRequestReceiver>,
-    query: Query<&StreamWriter>,
-    state: Res<GlobalStateResource>,
-) {
-    for (request, entity) in events.0.try_iter() {
-        if !state.0.players.is_connected(entity) {
-            return;
-        }
-
+    for (request, entity) in suggestions_to_process {
         let input = request.input;
 
         let command = find_command(input.clone());
@@ -82,7 +75,20 @@ pub fn handle(
             ))
             .unwrap_or(&input)
             .to_string();
-        let mut ctx = create_ctx(command_arg.clone(), command.clone(), Sender::Player(entity));
+        let stripped_input = command_arg
+            .clone()
+            .strip_prefix(command.clone().map(|c| c.name).unwrap_or_default())
+            .unwrap_or(&command_arg)
+            .trim_start()
+            .to_string();
+        
+        let command_input = CommandInput::of(stripped_input);
+        let mut ctx = CommandContext {
+            input: command_input,
+            command: command.clone().unwrap_or(ROOT_COMMAND.clone()),
+            sender: Sender::Player(entity),
+            world,
+        };
         let command_arg = command_arg.clone(); // ok borrow checker
         let tokens = command_arg.split(" ").collect::<Vec<&str>>();
         let Some(current_token) = tokens.last() else {
@@ -91,7 +97,7 @@ pub fn handle(
 
         let mut suggestions = Vec::new();
 
-        if let Some(command) = command {
+        if let Some(ref command) = command {
             for arg in command.args.clone() {
                 let arg_suggestions = (arg.suggester)(&mut ctx);
                 ctx.input.skip_whitespace(u32::MAX, true);
@@ -105,10 +111,7 @@ pub fn handle(
         let length = input.len();
         let start = length - current_token.len();
 
-        if let Err(e) = query
-            .get(entity)
-            .unwrap()
-            .send_packet(CommandSuggestionsPacket {
+        let packet = CommandSuggestionsPacket {
                 transaction_id: request.transaction_id,
                 matches: LengthPrefixedVec::new(
                     suggestions
@@ -122,9 +125,18 @@ pub fn handle(
                 ),
                 length: VarInt::new(length as i32),
                 start: VarInt::new(start as i32),
-            })
-        {
-            error!("failed sending command suggestions to player: {e}")
+        };
+
+        // Send the packet using a fresh system state access
+        let mut send_state: bevy_ecs::system::SystemState<Query<&StreamWriter>> = 
+            bevy_ecs::system::SystemState::new(world);
+        let writers = send_state.get(world);
+        
+        if let Ok(writer) = writers.get(entity) {
+            if let Err(e) = writer.send_packet(packet) {
+                error!("failed sending command suggestions to player: {e}");
+            }
         }
+        send_state.apply(world);
     }
 }

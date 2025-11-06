@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy_ecs::prelude::*;
 use ferrumc_commands::{
     events::{CommandDispatchEvent, ResolvedCommandDispatchEvent},
-    infrastructure, Command, CommandContext, CommandInput, Sender,
+    infrastructure, Command, Sender,
 };
 use ferrumc_core::mq;
 use ferrumc_net::ChatCommandPacketReceiver;
@@ -12,8 +12,7 @@ use ferrumc_text::{NamedColor, TextComponent, TextComponentBuilder};
 
 fn resolve(
     input: String,
-    sender: Sender,
-) -> Result<(Arc<Command>, CommandContext), Box<TextComponent>> {
+) -> Result<(Arc<Command>, String), Box<TextComponent>> {
     let command = infrastructure::find_command(&input);
     if command.is_none() {
         return Err(Box::new(
@@ -24,18 +23,13 @@ fn resolve(
     }
 
     let command = command.unwrap();
-    let input = input
+    let command_input = input
         .strip_prefix(command.name)
         .unwrap_or(&input)
-        .trim_start();
-    let input = CommandInput::of(input.to_string());
-    let ctx = CommandContext {
-        input: input.clone(),
-        command: command.clone(),
-        sender,
-    };
+        .trim_start()
+        .to_string();
 
-    Ok((command, ctx))
+    Ok((command, command_input))
 }
 
 pub fn handle(
@@ -51,13 +45,13 @@ pub fn handle(
             sender,
         });
 
-        let resolved = resolve(event.command, sender);
+        let resolved = resolve(event.command);
         match resolved {
             Err(err) => {
                 mq::queue(*err, false, entity);
             }
 
-            Ok((command, ctx)) => {
+            Ok((command, input)) => {
                 if let Some(required_permission) = command.permission {
                     let has_perm = match sender {
                         Sender::Player(player_entity) => {
@@ -77,7 +71,7 @@ pub fn handle(
 
                 resolved_dispatch_events.write(ResolvedCommandDispatchEvent {
                     command,
-                    ctx,
+                    input,
                     sender,
                 });
             }

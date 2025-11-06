@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use bevy_ecs::world::World;
 use tracing::error;
 
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
 };
 
 /// Context of the execution of a command.
-pub struct CommandContext {
+pub struct CommandContext<'w> {
     /// The command input.
     pub input: CommandInput,
 
@@ -21,9 +22,12 @@ pub struct CommandContext {
 
     /// The sender of the command.
     pub sender: Sender,
+
+    /// The ECS world for querying entities and state during suggestions/parsing.
+    pub world: &'w mut World,
 }
 
-impl CommandContext {
+impl<'w> CommandContext<'w> {
     /// Attempts to retrieve and parse an argument of the given `name` and parses it with the given parser.
     pub fn arg<T: CommandArgument + Sized>(&mut self, name: &str) -> ParserResult<T> {
         if self.command.args.iter().any(|a| a.name == name) {

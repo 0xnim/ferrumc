@@ -57,7 +57,7 @@ wrapper! {
 }
 
 impl CommandArgument for Float {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let token = ctx.input.read_string();
         let float = match token.parse::<f32>() {
             Ok(int) => int,

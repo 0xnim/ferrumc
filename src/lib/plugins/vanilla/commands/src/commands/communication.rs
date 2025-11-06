@@ -6,7 +6,7 @@
 //! - `/list` - Lists online players
 //! - `/msg <player> <message>` - Private message (aliases: /tell, /w)
 
-use ferrumc_commands::{arg::primitive::string::{GreedyString, SingleWord}, infrastructure, Sender};
+use ferrumc_commands::{arg::primitive::string::GreedyString, arg::entity::PlayerArgument, infrastructure, Sender};
 use ferrumc_commands_api::CommandsAPI;
 use ferrumc_config::server_config::get_global_config;
 use ferrumc_macros::command;
@@ -163,7 +163,7 @@ fn list_command(
 
 #[command("msg")]
 fn msg_command(
-    #[arg] target: SingleWord,
+    #[arg] target: PlayerArgument,
     #[arg] message: GreedyString,
     #[sender] sender: Sender,
     entities: EntityQueries,
@@ -177,8 +177,9 @@ fn msg_command(
             .unwrap_or_else(|| "Unknown".to_string()),
     };
     
-    let Some((target_entity, target_identity)) = entities.find_player_by_name(target.as_str()) else {
-        let error = ComponentBuilder::text(format!("Player '{}' not found", target.as_str()))
+    let target_entity = *target;
+    let Some(target_identity) = entities.identity(target_entity) else {
+        let error = ComponentBuilder::text("Target player not found")
             .color(NamedColor::Red)
             .build();
         match sender {
@@ -214,22 +215,22 @@ fn msg_command(
 
 #[command("tell")]
 fn tell_command(
-    #[arg] target: SingleWord,
+    #[arg] target: PlayerArgument,
     #[arg] message: GreedyString,
     #[sender] sender: Sender,
     entities: EntityQueries,
-    mut commands: CommandsAPI,
+    commands: CommandsAPI,
 ) {
     msg_command(target, message, sender, entities, commands);
 }
 
 #[command("w")]
 fn w_command(
-    #[arg] target: SingleWord,
+    #[arg] target: PlayerArgument,
     #[arg] message: GreedyString,
     #[sender] sender: Sender,
     entities: EntityQueries,
-    mut commands: CommandsAPI,
+    commands: CommandsAPI,
 ) {
     msg_command(target, message, sender, entities, commands);
 }

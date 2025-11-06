@@ -1,4 +1,4 @@
-use ferrumc_commands::{arg::primitive::string::SingleWord, Sender};
+use ferrumc_commands::{arg::entity::PlayerArgument, Sender};
 use ferrumc_commands_api::CommandsAPI;
 use ferrumc_macros::command;
 use ferrumc_permissions_api::PermissionsAPI;
@@ -7,14 +7,15 @@ use ferrumc_text::{ComponentBuilder, NamedColor};
 
 #[command("op", permission = "minecraft.command.op")]
 fn op_command(
-    #[arg] player_name: SingleWord,
+    #[arg] player: PlayerArgument,
     #[sender] sender: Sender,
     entities: EntityQueries,
     mut permissions: PermissionsAPI,
     mut commands: CommandsAPI,
 ) {
-    let Some((entity, identity)) = entities.find_player_by_name(player_name.as_str()) else {
-        let error = ComponentBuilder::text(format!("Player '{}' not found", player_name.as_str()))
+    let entity = *player;
+    let Some(identity) = entities.identity(entity) else {
+        let error = ComponentBuilder::text("Player not found")
             .color(NamedColor::Red)
             .build();
         match sender {
@@ -54,14 +55,15 @@ fn op_command(
 
 #[command("deop", permission = "minecraft.command.deop")]
 fn deop_command(
-    #[arg] player_name: SingleWord,
+    #[arg] player: PlayerArgument,
     #[sender] sender: Sender,
     entities: EntityQueries,
     mut permissions: PermissionsAPI,
     mut commands: CommandsAPI,
 ) {
-    let Some((entity, identity)) = entities.find_player_by_name(player_name.as_str()) else {
-        let error = ComponentBuilder::text(format!("Player '{}' not found", player_name.as_str()))
+    let entity = *player;
+    let Some(identity) = entities.identity(entity) else {
+        let error = ComponentBuilder::text("Player not found")
             .color(NamedColor::Red)
             .build();
         match sender {

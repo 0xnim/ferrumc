@@ -51,7 +51,7 @@ wrapper! {
 }
 
 impl CommandArgument for SingleWord {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let word = ctx.input.read_string();
 
         if word.is_empty() {
@@ -67,7 +67,7 @@ impl CommandArgument for SingleWord {
 }
 
 impl CommandArgument for QuotableString {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let input = &mut ctx.input;
 
         input.skip_whitespace(u32::MAX, false);
@@ -125,7 +125,7 @@ impl CommandArgument for QuotableString {
 }
 
 impl CommandArgument for GreedyString {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let input = &mut ctx.input;
         let mut result = String::new();
 

@@ -64,7 +64,7 @@ impl Deref for Integer {
 }
 
 impl<const MIN: i32, const MAX: i32> CommandArgument for Integer<MIN, MAX> {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let token = ctx.input.read_string();
         let int = match token.parse::<i32>() {
             Ok(int) => int,

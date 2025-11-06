@@ -64,7 +64,7 @@ impl Deref for Long {
 }
 
 impl<const MIN: i64, const MAX: i64> CommandArgument for Long<MIN, MAX> {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let token = ctx.input.read_string();
         let long = match token.parse::<i64>() {
             Ok(int) => int,

@@ -6,7 +6,7 @@ use crate::{
 use super::PrimitiveArgument;
 
 impl CommandArgument for bool {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let str = ctx.input.read_string();
 
         let value = match &*str.to_lowercase() {

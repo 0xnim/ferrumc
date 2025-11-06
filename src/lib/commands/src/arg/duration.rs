@@ -10,7 +10,7 @@ static PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("(([1-9][0-9]+|[1-9])[dhms])").unwrap());
 
 impl CommandArgument for Duration {
-    fn parse(ctx: &mut CommandContext) -> ParserResult<Self> {
+    fn parse(ctx: &mut CommandContext<'_>) -> ParserResult<Self> {
         let mut duration = Duration::ZERO;
 
         for (_, [line, value]) in PATTERN

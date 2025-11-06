@@ -95,6 +95,7 @@ pub enum PrimitiveArgumentFlags {
     Int(IntArgumentFlags),
     Long(LongArgumentFlags),
     String(StringArgumentType),
+    Entity(crate::arg::entity::EntityArgumentFlags),
 }
 
 #[derive(Clone, Debug, PartialEq, Ordinalize)]
