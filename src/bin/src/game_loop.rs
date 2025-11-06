@@ -194,6 +194,7 @@ fn build_timed_scheduler_base() -> Scheduler {
         s.add_systems(ferrumc_core_systems::inventory::broadcaster::send_inventory_updates);
         s.add_systems(ferrumc_core_systems::join_leave::broadcaster::broadcast_join_messages);
         s.add_systems(ferrumc_core_systems::join_leave::broadcaster::broadcast_leave_messages);
+        s.add_systems(ferrumc_core_systems::commands::broadcaster::broadcast_command_responses);
         s.add_systems(ferrumc_core_systems::movement::broadcaster::apply_movement_requests);
         s.add_systems(ferrumc_core_systems::movement::broadcaster::broadcast_movement_updates);
         s.add_systems(ferrumc_core_systems::movement::broadcaster::broadcast_head_rotation);

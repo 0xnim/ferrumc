@@ -1,22 +1,25 @@
 [package]
-name = "ferrumc-plugin-default-commands"
+name = "ferrumc-plugin-vanilla-commands"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# NO bevy_ecs - use plugin-api prelude instead
 tracing = { workspace = true }
+bevy_ecs = { workspace = true }
 
 # Plugin framework
 ferrumc-plugin-api = { workspace = true }
 
 # Domain APIs
 ferrumc-chat-api = { workspace = true }
+ferrumc-commands-api = { workspace = true }
 
-# Core types (TEMPORARY - only for mq queue bridge)
+# Core types
 ferrumc-core = { workspace = true }
 ferrumc-text = { workspace = true }
 ferrumc-commands = { workspace = true }
+ferrumc-macros = { workspace = true }
+ctor = { workspace = true }
 
 [lints]
 workspace = true

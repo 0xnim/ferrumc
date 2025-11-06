@@ -1,0 +1,15 @@
+[package]
+name = "ferrumc-commands-api"
+version = "0.1.0"
+edition = "2021"
+description = "Commands API for FerrumC - provides command response interface"
+
+[dependencies]
+bevy_ecs = { workspace = true }
+tracing = { workspace = true }
+
+# Core types
+ferrumc-text = { workspace = true }
+
+[lints]
+workspace = true

@@ -22,6 +22,7 @@ ferrumc-world = { workspace = true }
 ferrumc-animation-api = { workspace = true }
 ferrumc-block-api = { workspace = true }
 ferrumc-chat-api = { workspace = true }
+ferrumc-commands-api = { workspace = true }
 ferrumc-inventory-api = { workspace = true }
 ferrumc-join-leave-api = { workspace = true }
 ferrumc-movement-api = { workspace = true }

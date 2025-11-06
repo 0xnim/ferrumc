@@ -18,7 +18,6 @@ members = [
     "src/lib/adapters/nbt",
     "src/lib/adapters/nbt",
     "src/lib/commands",
-    "src/lib/default_commands",
     "src/lib/core",
     "src/lib/core/state",
     "src/lib/derive_macros",
@@ -44,19 +43,20 @@ members = [
     "src/lib/apis/animation-api",
     "src/lib/apis/block-api",
     "src/lib/apis/chat-api",
+    "src/lib/apis/commands-api",
     "src/lib/apis/inventory-api",
     "src/lib/apis/join-leave-api",
     "src/lib/apis/movement-api",
     "src/lib/core-systems",
     "src/lib/plugins/core/entity-sync",
     "src/lib/plugins/core/inventory-sync",
-    "src/lib/plugins/core/default-commands",
     "src/lib/plugins/vanilla/movement",
     "src/lib/plugins/vanilla/blocks",
     "src/lib/plugins/vanilla/chat",
     "src/lib/plugins/vanilla/animations",
     "src/lib/plugins/vanilla/join-leave",
     "src/lib/plugins/vanilla/spawn-safety",
+    "src/lib/plugins/vanilla/commands",
     "src/lib/plugins/test_violations",
 ]
 
@@ -138,6 +138,7 @@ ferrumc-inventories = { path = "src/lib/inventories" }
 ferrumc-animation-api = { path = "src/lib/apis/animation-api" }
 ferrumc-block-api = { path = "src/lib/apis/block-api" }
 ferrumc-chat-api = { path = "src/lib/apis/chat-api" }
+ferrumc-commands-api = { path = "src/lib/apis/commands-api" }
 ferrumc-inventory-api = { path = "src/lib/apis/inventory-api" }
 ferrumc-join-leave-api = { path = "src/lib/apis/join-leave-api" }
 ferrumc-movement-api = { path = "src/lib/apis/movement-api" }

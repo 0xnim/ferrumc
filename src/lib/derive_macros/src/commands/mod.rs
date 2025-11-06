@@ -144,6 +144,7 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
         .clone()
         .iter()
         .map(|(pat, ty)| {
+            // Preserve the full pattern including `mut`
             quote! { #pat: #ty, }
         })
         .collect::<Vec<proc_macro2::TokenStream>>();
@@ -153,6 +154,7 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|(pat, _)| match pat.as_ref() {
             syn::Pat::Ident(pat_ident) => {
                 let ident = &pat_ident.ident;
+                // Just use the identifier, not the full pattern (no mut in the call)
                 quote!(#ident)
             }
             _ => quote!(#pat),
@@ -170,10 +172,7 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
                 match ctx.arg::<#ty>(#name) {
                     Ok(a) => a,
                     Err(err) => {
-                        sender.send_message(ferrumc_text::TextComponentBuilder::new(format!("failed parsing {}: ", #name))
-                            .extra(*err)
-                            .color(ferrumc_text::NamedColor::Red)
-                            .build(), false);
+                        // TODO: Send error message via ChatAPI
                         return;
                     }
                 },
@@ -210,15 +209,15 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let call = if has_sender_arg && sender_arg_before_cmd_args {
         quote! {
-            #fn_name(#sender_param #(#arg_extractors)* #(#system_arg_pats)*);
+            #fn_name(#sender_param #(#arg_extractors)* #(#system_arg_pats),*);
         }
     } else if has_sender_arg {
         quote! {
-            #fn_name(#(#arg_extractors)* #sender_param #(#system_arg_pats)*);
+            #fn_name(#(#arg_extractors)* #sender_param #(#system_arg_pats),*);
         }
     } else {
         quote! {
-            #fn_name(#(#arg_extractors)* #(#system_arg_pats)*);
+            #fn_name(#(#arg_extractors)* #(#system_arg_pats),*);
         }
     };
 

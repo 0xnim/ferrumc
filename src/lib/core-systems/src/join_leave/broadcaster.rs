@@ -5,18 +5,20 @@
 //! - This system reads those requests and delivers them (network I/O)
 
 use bevy_ecs::prelude::*;
-use ferrumc_core::mq;
+use ferrumc_chat_api::ChatAPI;
 use ferrumc_join_leave_api::{SendJoinMessageRequest, SendLeaveMessageRequest};
 
 /// Broadcast join messages to players
 ///
 /// This is PURE I/O - no game logic!
 /// - Reads SendJoinMessageRequest events from plugins
-/// - Queues messages to the legacy mq system
-pub fn broadcast_join_messages(mut events: EventReader<SendJoinMessageRequest>) {
+/// - Delivers messages via ChatAPI
+pub fn broadcast_join_messages(
+    mut events: EventReader<SendJoinMessageRequest>,
+    mut chat: ChatAPI,
+) {
     for request in events.read() {
-        // Queue the message for delivery (I/O only)
-        mq::queue(request.message.clone(), false, request.receiver);
+        chat.send(request.receiver, request.message.clone());
     }
 }
 
@@ -24,10 +26,12 @@ pub fn broadcast_join_messages(mut events: EventReader<SendJoinMessageRequest>) 
 ///
 /// This is PURE I/O - no game logic!
 /// - Reads SendLeaveMessageRequest events from plugins
-/// - Queues messages to the legacy mq system
-pub fn broadcast_leave_messages(mut events: EventReader<SendLeaveMessageRequest>) {
+/// - Delivers messages via ChatAPI
+pub fn broadcast_leave_messages(
+    mut events: EventReader<SendLeaveMessageRequest>,
+    mut chat: ChatAPI,
+) {
     for request in events.read() {
-        // Queue the message for delivery (I/O only)
-        mq::queue(request.message.clone(), false, request.receiver);
+        chat.send(request.receiver, request.message.clone());
     }
 }

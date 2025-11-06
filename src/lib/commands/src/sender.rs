@@ -1,9 +1,8 @@
 //! Command senders.
 
 use bevy_ecs::prelude::*;
-use ferrumc_core::mq;
+use ferrumc_commands_api::CommandsAPI;
 use ferrumc_text::TextComponent;
-use tracing::info;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 /// A possible command sender.
@@ -18,11 +17,17 @@ pub enum Sender {
 impl Sender {
     /// Sends the given `message` to this sender, and to the action bar
     /// if `actionbar` is true.
-    pub fn send_message(&self, message: TextComponent, actionbar: bool) {
+    pub fn send_message(&self, mut commands: CommandsAPI, message: TextComponent, actionbar: bool) {
         match self {
-            Sender::Player(entity) => mq::queue(message, actionbar, *entity),
+            Sender::Player(entity) => {
+                if actionbar {
+                    commands.send_actionbar(*entity, message);
+                } else {
+                    commands.send_to_player(*entity, message);
+                }
+            }
             Sender::Server => {
-                info!("{message}"); // TODO: serialize into ANSI?
+                commands.send_to_console(message);
             }
         }
     }

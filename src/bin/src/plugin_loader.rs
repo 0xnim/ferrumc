@@ -231,7 +231,6 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     // Core plugins (state synchronization - NO broadcasting)
     registry.register::<ferrumc_plugin_entity_sync::EntitySyncPlugin>();
     registry.register::<ferrumc_plugin_inventory_sync::InventorySyncPlugin>();
-    registry.register::<ferrumc_plugin_default_commands::DefaultCommandsPlugin>();
     
     // Vanilla plugins (game logic + broadcasting)
     registry.register::<ferrumc_plugin_vanilla_movement::VanillaMovementPlugin>();
@@ -240,6 +239,7 @@ pub fn create_plugin_registry() -> Result<PluginRegistry, PluginError> {
     registry.register::<ferrumc_plugin_vanilla_animations::VanillaAnimationsPlugin>();
     registry.register::<ferrumc_plugin_vanilla_join_leave::VanillaJoinLeavePlugin>();
     registry.register::<ferrumc_plugin_vanilla_spawn_safety::VanillaSpawnSafetyPlugin>();
+    registry.register::<ferrumc_plugin_vanilla_commands::VanillaCommandsPlugin>();
     
     // Example plugins
     registry.register::<ferrumc_plugin_hello::HelloPlugin>();

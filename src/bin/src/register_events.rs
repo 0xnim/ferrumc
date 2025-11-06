@@ -9,6 +9,7 @@ use ferrumc_net::packets::packet_events::TransformEvent;
 use ferrumc_animation_api::{PlayAnimationRequest, PlayerCommandEvent, PlayerInputEvent, PlayerSwingArmEvent, SetEntityPoseRequest};
 use ferrumc_block_api::{BlockBreakAttemptEvent, BlockPlaceAttemptEvent, BreakBlockRequest, PlaceBlockRequest, SendBlockChangeAckRequest, SendBlockUpdateRequest};
 use ferrumc_chat_api::{ChatMessageEvent, SendChatMessageRequest};
+use ferrumc_commands_api::SendCommandResponseEvent;
 use ferrumc_inventory_api::{SendInventoryUpdateRequest, SetCreativeSlotEvent, SetHeldItemEvent};
 use ferrumc_join_leave_api::{PlayerJoinEvent, PlayerLeaveEvent, SendJoinMessageRequest, SendLeaveMessageRequest};
 use ferrumc_movement_api::{
@@ -42,6 +43,9 @@ pub fn register_events(world: &mut World) {
     // Chat API events
     EventRegistry::register_event::<ChatMessageEvent>(world);
     EventRegistry::register_event::<SendChatMessageRequest>(world);
+    
+    // Commands API events
+    EventRegistry::register_event::<SendCommandResponseEvent>(world);
     
     // Inventory API events
     EventRegistry::register_event::<SetCreativeSlotEvent>(world);

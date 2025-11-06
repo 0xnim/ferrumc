@@ -10,6 +10,7 @@ dashmap = { workspace = true }
 tokio = { workspace = true }
 ferrumc-text = { workspace = true }
 ferrumc-core = { workspace = true }
+ferrumc-commands-api = { workspace = true }
 enum-ordinalize = { workspace = true }
 ferrumc-macros = { workspace = true }
 bevy_ecs = { workspace = true }
