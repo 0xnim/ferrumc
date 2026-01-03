@@ -3,8 +3,9 @@ use ferrumc_world::pos::BlockPos;
 use std::time::{Duration, Instant};
 
 use crate::BinaryError;
-use ferrumc_api::behavior::{BlockContext, BlockPos as ApiBlockPos};
-use ferrumc_api_server::BlockBehaviorRegistry;
+use ferrumc_api::behavior::BlockContext;
+use ferrumc_api::world::Dimension;
+use ferrumc_api_server::{BlockBehaviorRegistry, WorldAccessorResource};
 use ferrumc_components::player::abilities::PlayerAbilities;
 use ferrumc_components::player::gameplay_state::digging::PlayerDigging;
 use ferrumc_data::blocks::types::Block;
@@ -31,6 +32,7 @@ pub fn handle_start_digging(
     mut events: MessageReader<PlayerStartedDigging>,
     mut player_query: Query<DiggingPlayerQuery>,
     state: Res<GlobalStateResource>,
+    world_accessor: Res<WorldAccessorResource>,
     block_behaviors: Res<BlockBehaviorRegistry>,
 ) {
     for event in events.read() {
@@ -48,10 +50,8 @@ pub fn handle_start_digging(
 
         // --- 1. Get BlockStateId from the world ---
         let pos = event.position.clone().into();
-        let block_state_id = match state.0.world.get_block_and_fetch(
-            pos,
-            "overworld", // TODO: remove hardcoded dimension
-        ) {
+        let dimension = Dimension::Overworld; // TODO: get dimension from player
+        let block_state_id = match state.0.world.get_block_and_fetch(pos, dimension.as_str()) {
             Ok(id) => id,
             Err(e) => {
                 warn!(
@@ -72,17 +72,15 @@ pub fn handle_start_digging(
 
         // --- 3. Get Hardness ---
         // Create block context for behavior queries
-        let block_ctx = BlockContext {
-            position: ApiBlockPos::new(
-                event.position.x,
-                event.position.y as i32,
-                event.position.z,
-            ),
-            block_id: block_name.to_string(),
-            actor: Some(event.player),
-            is_server: true,
-            actor_creative: is_creative,
-        };
+        let block_ctx = BlockContext::new(
+            BlockPos::of(event.position.x, event.position.y as i32, event.position.z),
+            dimension,
+            block_name.to_string(),
+            Some(event.player),
+            true, // is_server
+            is_creative,
+            world_accessor.0.as_ref(),
+        );
 
         // First check behaviors for hardness override (e.g., creative mode instant break)
         let behavior_hardness = block_behaviors.get_hardness(block_name, &block_ctx);

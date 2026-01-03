@@ -10,7 +10,7 @@ use ferrumc_api::behavior::{BlockBehavior, BlockContext, Handling};
 pub struct InstantBreakBehavior;
 
 impl BlockBehavior for InstantBreakBehavior {
-    fn get_hardness(&self, ctx: &BlockContext) -> Option<f32> {
+    fn get_hardness(&self, ctx: &BlockContext<'_>) -> Option<f32> {
         // Check if the player breaking the block is in creative mode
         if ctx.is_player_creative() {
             // Return 0 hardness for instant breaking
@@ -21,7 +21,7 @@ impl BlockBehavior for InstantBreakBehavior {
         }
     }
 
-    fn get_drops(&self, ctx: &BlockContext) -> Option<Vec<ferrumc_api::behavior::ItemStack>> {
+    fn get_drops(&self, ctx: &BlockContext<'_>) -> Option<Vec<ferrumc_api::behavior::ItemStack>> {
         // In creative mode, blocks don't drop items
         if ctx.is_player_creative() {
             Some(Vec::new()) // Empty drops
@@ -30,7 +30,7 @@ impl BlockBehavior for InstantBreakBehavior {
         }
     }
 
-    fn on_broken(&self, _ctx: &mut BlockContext) -> Handling {
+    fn on_broken(&self, _ctx: &mut BlockContext<'_>) -> Handling {
         // Always pass - the hardness of 0 handles instant breaking for creative
         // Other behaviors can still process the break event
         Handling::Pass

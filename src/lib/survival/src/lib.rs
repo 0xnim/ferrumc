@@ -73,7 +73,7 @@ impl ModSystem for SurvivalMod {
 
         // Example: Use world access to check spawn block
         let world = api.world();
-        match world.get_block(BlockPos::of(0, 64, 0), "overworld") {
+        match world.get_block(BlockPos::of(0, 64, 0), Dimension::Overworld) {
             Ok(block) => info!("Block at spawn (0, 64, 0): {:?}", block),
             Err(e) => info!("Could not read spawn block (world not loaded yet): {}", e),
         }

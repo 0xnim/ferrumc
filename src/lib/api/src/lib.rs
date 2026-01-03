@@ -53,7 +53,7 @@ pub mod prelude {
     pub use crate::context::*;
     pub use crate::event::{Event, EventHandler, EventPriority};
     pub use crate::provider::{ComponentProvider, EntitySetupContext, PlayerSetupContext};
-    pub use crate::world::WorldAccess;
+    pub use crate::world::{Dimension, WorldAccess};
     pub use crate::{CoreApi, ModSystem, ServerApi};
 
     // Command API re-exports
@@ -112,6 +112,8 @@ pub trait ModSystem: Send + Sync + 'static {
     fn assets_finalize(&self, _api: &mut dyn ServerApi) {}
 
     /// Called when the server is shutting down.
+    ///
+    /// TODO: Add shutdown context parameter when shutdown sequence is implemented.
     fn dispose(&self) {}
 }
 
@@ -172,10 +174,10 @@ pub trait ServerApi: CoreApi {
     ///     let world = api.world();
     ///
     ///     // Read a block
-    ///     let block = world.get_block(BlockPos::new(0, 64, 0), "overworld")?;
+    ///     let block = world.get_block(BlockPos::of(0, 64, 0), Dimension::Overworld)?;
     ///
     ///     // Set a block
-    ///     world.set_block(BlockPos::new(0, 65, 0), "overworld", BlockStateId::new(1))?;
+    ///     world.set_block(BlockPos::of(0, 65, 0), Dimension::Overworld, BlockStateId::AIR)?;
     /// }
     /// ```
     fn world(&self) -> &dyn WorldAccess;

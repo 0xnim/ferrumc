@@ -1,7 +1,9 @@
 //! Event system for mod communication.
 //!
-//! This module wraps Bevy's message system with a mod-friendly API.
-//! Events can be subscribed to with priority ordering.
+//! This module provides base types for event handling. Currently, events
+//! are handled via Bevy's messaging system (`MessageReader`/`MessageWriter`).
+//!
+//! TODO: Add event subscription API to ServerApi when needed.
 
 use bevy_ecs::prelude::*;
 
@@ -31,20 +33,6 @@ pub enum EventPriority {
     Lowest = 4,
     /// Runs last, should not modify event (monitoring only)
     Monitor = 5,
-}
-
-impl EventPriority {
-    /// Get all priorities in execution order.
-    pub fn all() -> &'static [EventPriority] {
-        &[
-            EventPriority::Highest,
-            EventPriority::High,
-            EventPriority::Normal,
-            EventPriority::Low,
-            EventPriority::Lowest,
-            EventPriority::Monitor,
-        ]
-    }
 }
 
 /// A handler function for an event type.
@@ -81,33 +69,4 @@ macro_rules! impl_event {
             impl $crate::event::Event for $event {}
         )*
     };
-}
-
-/// Type alias for event handler function wrapped in Arc.
-pub type ArcEventHandler<E> = std::sync::Arc<dyn Fn(&mut E, &mut World) + Send + Sync>;
-
-/// A stored event listener with priority information.
-#[derive(Clone)]
-pub struct EventListener<E: Event> {
-    /// The handler function
-    pub handler: ArcEventHandler<E>,
-    /// Handler priority
-    pub priority: EventPriority,
-    /// Mod that registered this listener
-    pub mod_id: &'static str,
-}
-
-impl<E: Event> EventListener<E> {
-    /// Create a new event listener.
-    pub fn new(
-        priority: EventPriority,
-        mod_id: &'static str,
-        handler: impl Fn(&mut E, &mut World) + Send + Sync + 'static,
-    ) -> Self {
-        Self {
-            handler: std::sync::Arc::new(handler),
-            priority,
-            mod_id,
-        }
-    }
 }

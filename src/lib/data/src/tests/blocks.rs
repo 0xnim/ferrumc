@@ -193,11 +193,17 @@ fn test_blocks_api_improved() {
     assert_eq!(blocks::STONE.id, blocks::stone::STONE.id);
 
     // Test total blocks count
-    assert!(!blocks::ALL_BLOCKS.is_empty());
+    #[expect(clippy::const_is_empty)]
+    {
+        assert!(!blocks::ALL_BLOCKS.is_empty());
+    }
     assert!(blocks::ALL_BLOCKS.len() > 100); // Should have many blocks
 
     // Test shapes count
-    assert!(!blocks::shapes::SHAPES.is_empty());
+    #[expect(clippy::const_is_empty)]
+    {
+        assert!(!blocks::shapes::SHAPES.is_empty());
+    }
 }
 
 #[test]

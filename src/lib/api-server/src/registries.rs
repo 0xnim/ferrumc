@@ -9,7 +9,8 @@ use bevy_ecs::prelude::*;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 
-use ferrumc_api::behavior::{BlockBehavior, BlockContext, CollectibleBehavior, EntityBehavior, ItemStack};
+use ferrumc_api::behavior::{BlockBehavior, CollectibleBehavior, EntityBehavior, ItemStack};
+use ferrumc_api::behavior::BlockContext;
 use ferrumc_api::provider::ComponentProvider;
 
 /// Registry for block behaviors.
@@ -63,7 +64,7 @@ impl BlockBehaviorRegistry {
     ///
     /// Returns the first non-None hardness value from behaviors,
     /// checking global behaviors first, then block-specific behaviors.
-    pub fn get_hardness(&self, block_id: &str, ctx: &BlockContext) -> Option<f32> {
+    pub fn get_hardness(&self, block_id: &str, ctx: &BlockContext<'_>) -> Option<f32> {
         // Check global behaviors first
         for behavior in self.global_behaviors.read().iter() {
             if let Some(hardness) = behavior.get_hardness(ctx) {
@@ -86,7 +87,7 @@ impl BlockBehaviorRegistry {
     /// Get drops override from behaviors.
     ///
     /// Returns the first non-None drops value from behaviors.
-    pub fn get_drops(&self, block_id: &str, ctx: &BlockContext) -> Option<Vec<ItemStack>> {
+    pub fn get_drops(&self, block_id: &str, ctx: &BlockContext<'_>) -> Option<Vec<ItemStack>> {
         // Check global behaviors first
         for behavior in self.global_behaviors.read().iter() {
             if let Some(drops) = behavior.get_drops(ctx) {

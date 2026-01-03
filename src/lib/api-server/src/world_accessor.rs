@@ -238,28 +238,40 @@ impl WorldAccessorResource {
 // =========================================================================
 
 impl ferrumc_api::world::WorldAccess for WorldAccessor {
-    fn get_block(&self, pos: BlockPos, dimension: &str) -> Result<BlockStateId, WorldError> {
-        self.get_block_and_fetch(pos, dimension)
+    fn get_block(
+        &self,
+        pos: BlockPos,
+        dimension: ferrumc_api::world::Dimension,
+    ) -> Result<BlockStateId, WorldError> {
+        self.get_block_and_fetch(pos, dimension.as_str())
     }
 
     fn set_block(
         &self,
         pos: BlockPos,
-        dimension: &str,
+        dimension: ferrumc_api::world::Dimension,
         block: BlockStateId,
     ) -> Result<(), WorldError> {
-        self.set_block_and_fetch(pos, dimension, block)
+        self.set_block_and_fetch(pos, dimension.as_str(), block)
     }
 
-    fn chunk_exists(&self, pos: ChunkPos, dimension: &str) -> Result<bool, WorldError> {
-        self.chunk_exists(pos, dimension)
+    fn chunk_exists(
+        &self,
+        pos: ChunkPos,
+        dimension: ferrumc_api::world::Dimension,
+    ) -> Result<bool, WorldError> {
+        WorldAccessor::chunk_exists(self, pos, dimension.as_str())
     }
 
-    fn is_chunk_cached(&self, pos: ChunkPos, dimension: &str) -> bool {
-        self.is_chunk_cached(pos, dimension)
+    fn is_chunk_cached(&self, pos: ChunkPos, dimension: ferrumc_api::world::Dimension) -> bool {
+        WorldAccessor::is_chunk_cached(self, pos, dimension.as_str())
     }
 
-    fn load_or_generate(&self, pos: ChunkPos, dimension: &str) -> Result<(), WorldError> {
-        self.load_or_generate(pos, dimension)
+    fn load_or_generate(
+        &self,
+        pos: ChunkPos,
+        dimension: ferrumc_api::world::Dimension,
+    ) -> Result<(), WorldError> {
+        WorldAccessor::load_or_generate(self, pos, dimension.as_str())
     }
 }

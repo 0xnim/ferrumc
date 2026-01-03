@@ -6,6 +6,11 @@
 
 use bevy_ecs::prelude::*;
 
+// Re-export BlockPos from ferrumc_world to avoid duplication
+pub use ferrumc_world::pos::BlockPos;
+
+use crate::world::{Dimension, WorldAccess};
+
 /// Result of a behavior handler determining control flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Handling {
@@ -31,10 +36,14 @@ impl Handling {
 }
 
 /// Context provided to block behavior methods.
-#[derive(Debug)]
-pub struct BlockContext {
+///
+/// Provides access to the block being acted upon, the actor (if any),
+/// and the game world for reading/modifying blocks.
+pub struct BlockContext<'a> {
     /// Block position in world coordinates
     pub position: BlockPos,
+    /// The dimension this block is in
+    pub dimension: Dimension,
     /// Block ID (e.g., "minecraft:stone")
     pub block_id: String,
     /// Entity that triggered the action (if any)
@@ -43,28 +52,69 @@ pub struct BlockContext {
     pub is_server: bool,
     /// Whether the actor is in creative mode
     pub actor_creative: bool,
+    /// Access to the game world
+    world: &'a dyn WorldAccess,
 }
 
-impl BlockContext {
+impl<'a> BlockContext<'a> {
+    /// Create a new BlockContext.
+    pub fn new(
+        position: BlockPos,
+        dimension: Dimension,
+        block_id: String,
+        actor: Option<Entity>,
+        is_server: bool,
+        actor_creative: bool,
+        world: &'a dyn WorldAccess,
+    ) -> Self {
+        Self {
+            position,
+            dimension,
+            block_id,
+            actor,
+            is_server,
+            actor_creative,
+            world,
+        }
+    }
+
     /// Check if the player/actor is in creative mode.
     pub fn is_player_creative(&self) -> bool {
         self.actor_creative
     }
-}
 
-/// Block position in world coordinates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct BlockPos {
-    pub x: i32,
-    pub y: i32,
-    pub z: i32,
-}
-
-impl BlockPos {
-    pub fn new(x: i32, y: i32, z: i32) -> Self {
-        Self { x, y, z }
+    /// Get access to the game world.
+    ///
+    /// Use this to read or modify blocks in the world.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// fn on_broken(&self, ctx: &mut BlockContext) -> Handling {
+    ///     // Set the block above to air
+    ///     let above = BlockPos::of(ctx.position.x, ctx.position.y + 1, ctx.position.z);
+    ///     let _ = ctx.world().set_block(above, ctx.dimension, BlockStateId::AIR);
+    ///     Handling::Handled
+    /// }
+    /// ```
+    pub fn world(&self) -> &dyn WorldAccess {
+        self.world
     }
 }
+
+impl std::fmt::Debug for BlockContext<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BlockContext")
+            .field("position", &format_args!("({}, {}, {})", self.position.pos.x, self.position.pos.y, self.position.pos.z))
+            .field("dimension", &self.dimension)
+            .field("block_id", &self.block_id)
+            .field("actor", &self.actor)
+            .field("is_server", &self.is_server)
+            .field("actor_creative", &self.actor_creative)
+            .finish_non_exhaustive()
+    }
+}
+
 
 /// An item stack (item type + count).
 #[derive(Debug, Clone)]
@@ -100,47 +150,55 @@ impl ItemStack {
 ///
 /// impl BlockBehavior for ExplosiveBlockBehavior {
 ///     fn on_broken(&self, ctx: &mut BlockContext) -> Handling {
-///         // Create explosion at block position
-///         spawn_explosion(ctx.position);
+///         // Destroy blocks in a radius around this block
+///         let center = ctx.position;
+///         for dx in -2..=2 {
+///             for dy in -2..=2 {
+///                 for dz in -2..=2 {
+///                     let pos = BlockPos::of(center.x + dx, center.y + dy, center.z + dz);
+///                     let _ = ctx.world().set_block(pos, ctx.dimension, BlockStateId::AIR);
+///                 }
+///             }
+///         }
 ///         Handling::Handled
 ///     }
 /// }
 /// ```
 pub trait BlockBehavior: Send + Sync + 'static {
     /// Called when the block is placed in the world.
-    fn on_placed(&self, _ctx: &mut BlockContext) -> Handling {
+    fn on_placed(&self, _ctx: &mut BlockContext<'_>) -> Handling {
         Handling::Pass
     }
 
     /// Called when the block is broken/destroyed.
-    fn on_broken(&self, _ctx: &mut BlockContext) -> Handling {
+    fn on_broken(&self, _ctx: &mut BlockContext<'_>) -> Handling {
         Handling::Pass
     }
 
     /// Called when a player interacts with the block.
-    fn on_interact(&self, _ctx: &mut BlockContext) -> Handling {
+    fn on_interact(&self, _ctx: &mut BlockContext<'_>) -> Handling {
         Handling::Pass
     }
 
     /// Called when a neighboring block changes.
-    fn on_neighbor_changed(&self, _ctx: &mut BlockContext, _neighbor_pos: BlockPos) -> Handling {
+    fn on_neighbor_changed(&self, _ctx: &mut BlockContext<'_>, _neighbor_pos: BlockPos) -> Handling {
         Handling::Pass
     }
 
     /// Get the drops when this block is broken.
     /// Return None to use default drops.
-    fn get_drops(&self, _ctx: &BlockContext) -> Option<Vec<ItemStack>> {
+    fn get_drops(&self, _ctx: &BlockContext<'_>) -> Option<Vec<ItemStack>> {
         None
     }
 
     /// Get the hardness of this block (affects break time).
     /// Return None to use default hardness.
-    fn get_hardness(&self, _ctx: &BlockContext) -> Option<f32> {
+    fn get_hardness(&self, _ctx: &BlockContext<'_>) -> Option<f32> {
         None
     }
 
     /// Check if the block can be placed at this position.
-    fn can_place_at(&self, _ctx: &BlockContext) -> bool {
+    fn can_place_at(&self, _ctx: &BlockContext<'_>) -> bool {
         true
     }
 }
@@ -258,7 +316,6 @@ pub struct UseContext {
 }
 
 /// Context for mining speed calculation.
-#[derive(Debug)]
 pub struct MiningContext {
     /// Entity doing the mining
     pub miner: Entity,
@@ -268,6 +325,17 @@ pub struct MiningContext {
     pub position: BlockPos,
     /// Tool being used
     pub tool: Option<ItemStack>,
+}
+
+impl std::fmt::Debug for MiningContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MiningContext")
+            .field("miner", &self.miner)
+            .field("block_id", &self.block_id)
+            .field("position", &format_args!("({}, {}, {})", self.position.pos.x, self.position.pos.y, self.position.pos.z))
+            .field("tool", &self.tool)
+            .finish()
+    }
 }
 
 /// Modular behavior for items/collectibles.
