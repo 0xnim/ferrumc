@@ -59,6 +59,9 @@ impl ModSystem for SurvivalMod {
         api.register_gameplay_systems(Box::new(|schedule| {
             use systems::*;
 
+            // Block placement item consumption
+            schedule.add_systems(block_place::handle_block_placement);
+
             // Fall damage detection
             schedule.add_systems(fall_damage::handle_fall_damage);
 

@@ -1,41 +1,46 @@
-use bevy_ecs::prelude::{Entity, Query, Res};
-use ferrumc_components::player::abilities::PlayerAbilities;
+//! Pick item from block handler.
+//!
+//! This handler processes middle-click (pick block) requests.
+//! Common logic (finding items in inventory) is handled here.
+//! Creative mode item spawning is delegated to ferrumc-creative mod via events.
+
+use bevy_ecs::prelude::{Entity, MessageWriter, Query, Res};
+use ferrumc_components::player::dimension::PlayerDimension;
 use ferrumc_core::identity::player_identity::PlayerIdentity;
 use ferrumc_inventories::item::ItemID;
-use ferrumc_inventories::slot::InventorySlot;
 use ferrumc_inventories::{hotbar::Hotbar, inventory::Inventory};
+use ferrumc_messages::PickItemNotFound;
 use ferrumc_net::connection::StreamWriter;
 use ferrumc_net::packets::outgoing::set_held_slot::SetHeldItem;
-use ferrumc_net_codec::net_types::var_int::VarInt;
 use ferrumc_state::GlobalStateResource;
 
 use ferrumc_net::PickItemFromBlockReceiver;
 use tracing::{debug, error, warn};
 
 pub fn handle(
-    events: Res<PickItemFromBlockReceiver>, // Packet queue
+    events: Res<PickItemFromBlockReceiver>,
     state: Res<GlobalStateResource>,
     mut player_inv_query: Query<(
         Entity,
         &PlayerIdentity,
-        &PlayerAbilities,
         &mut Inventory,
         &mut Hotbar,
         &StreamWriter,
+        &PlayerDimension,
     )>,
+    mut pick_not_found_events: MessageWriter<PickItemNotFound>,
 ) {
     for (packet, sender_entity) in events.0.try_iter() {
         // 1. Get player's components
-        let (entity, identity, abilities, mut inventory, mut hotbar, writer) =
-            match player_inv_query.get_mut(sender_entity) {
-                Ok(data) => data,
-                Err(e) => {
-                    panic!(
-                    "PickItemFromBlock: Recieved packet from entity {:?} without components {:?}",
-                    sender_entity, e
-                );
-                }
-            };
+        let Ok((entity, identity, mut inventory, mut hotbar, writer, dimension)) =
+            player_inv_query.get_mut(sender_entity)
+        else {
+            warn!(
+                "PickItemFromBlock: Player {:?} missing required components",
+                sender_entity
+            );
+            continue;
+        };
 
         debug!(
             "Player {} requested pick block at {:?} (Include Data: {})",
@@ -46,7 +51,7 @@ pub fn handle(
         let pos = packet.location.clone().into();
         let block_state_id = match state.0.world.get_block_and_fetch(
             pos,
-            "overworld", // TODO: Remove overworld hard coding for the dimension
+            dimension.as_str(),
         ) {
             Ok(id) => id,
             Err(e) => {
@@ -59,15 +64,12 @@ pub fn handle(
         };
 
         // 3. Convert `BlockStateId` to `ItemId`
-        let item_id = match ItemID::from_block_state(block_state_id) {
-            Some(id) => id,
-            None => {
-                debug!(
-                    "PickItemFromBlock: No item for block state {:?}",
-                    block_state_id
-                );
-                continue; // No item for this block (e.g., air)
-            }
+        let Some(item_id) = ItemID::from_block_state(block_state_id) else {
+            debug!(
+                "PickItemFromBlock: No item for block state {:?}",
+                block_state_id
+            );
+            continue; // No item for this block (e.g., air)
         };
 
         debug!(
@@ -78,7 +80,7 @@ pub fn handle(
         // 4. Search the inventory for `ItemID`
         let found_slot_index = inventory.find_item(item_id);
 
-        // 5a. Search hotbar
+        // 5a. Search hotbar first
         if let Some(hotbar_slot) = hotbar.find_item(&inventory, item_id) {
             // Item is in the hotbar. Check if we're already holding it.
             if hotbar.selected_slot == hotbar_slot {
@@ -90,10 +92,10 @@ pub fn handle(
                 hotbar_slot
             );
 
-            // 1. Update the server's state
+            // Update the server's state
             hotbar.selected_slot = hotbar_slot;
 
-            // 2. Send the packet to sync the client
+            // Send the packet to sync the client
             let packet = SetHeldItem { slot: hotbar_slot };
             if let Err(e) = writer.send_packet_ref(&packet) {
                 error!("Failed to send SetHeldItem packet: {:?}", e);
@@ -106,7 +108,7 @@ pub fn handle(
                 inventory_slot_index, hotbar.selected_slot
             );
 
-            // Check if the item is already in the selected hotbar slot.
+            // Check if the item is already in the selected hotbar slot
             if inventory_slot_index == hotbar.get_selected_inventory_index() {
                 continue; // Nothing to do
             }
@@ -117,39 +119,17 @@ pub fn handle(
                 warn!("Failed to swap slots: {:?}", e);
             }
         }
-        // 6. If not found AND in creative mode
-        else if abilities.creative_mode {
-            // TODO: Possible bug with using creative_mode ability instead of creative Gamemode
-            debug!("Item not found. Creating stack for creative player.");
-
-            let new_slot = InventorySlot {
-                item_id: Some(item_id),
-                count: VarInt::new(1),
-                ..Default::default()
-            };
-
-            // TODO: Handle NBT data
-            if packet.include_data {
-                warn!("PickBlock: NBT data request (include_data=true is not implemented yet.");
-            }
-
-            if let Some(new_index) = hotbar.get_lowest_open_slot(&inventory) {
-                if let Err(e) =
-                    hotbar.set_item_with_update(&mut inventory, new_index, new_slot, entity)
-                {
-                    warn!("Failed to set creative item in hotbar: {:?}", e);
-                } else {
-                    let packet = SetHeldItem { slot: new_index };
-                    if let Err(e) = writer.send_packet_ref(&packet) {
-                        error!("Failed to send SetHeldItem packet: {:?}", e);
-                    }
-                }
-            }
-        }
-        // 7. If not found AND survival...
+        // 6. Item not found in inventory - fire event for mods to handle
         else {
-            debug!("Item not found in inventory and player is in survival. Doing nothing.")
-            // No-op
+            debug!(
+                "Item {:?} not found in inventory. Firing PickItemNotFound event.",
+                item_id
+            );
+            pick_not_found_events.write(PickItemNotFound {
+                player: entity,
+                item_id,
+                include_data: packet.include_data,
+            });
         }
     }
 }

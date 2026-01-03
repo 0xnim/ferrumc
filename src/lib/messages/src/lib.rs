@@ -29,3 +29,9 @@ pub use entity_spawn::{EntityType, SpawnEntityCommand, SpawnEntityEvent};
 
 pub mod block_break;
 pub use block_break::BlockBrokenEvent;
+
+pub mod block_place;
+pub use block_place::*;
+
+pub mod pick_item;
+pub use pick_item::*;

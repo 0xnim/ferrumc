@@ -1,7 +1,15 @@
-use bevy_ecs::prelude::{Entity, Query, Res};
+//! Block placement handler.
+//!
+//! This handler processes block placement requests.
+//! Item consumption for survival mode is handled via events by ferrumc-survival.
+
+use bevy_ecs::prelude::{Entity, MessageWriter, Query, Res};
+use ferrumc_components::player::dimension::PlayerDimension;
 use ferrumc_core::collisions::bounds::CollisionBounds;
 use ferrumc_core::transform::position::Position;
-use ferrumc_creative::CreativeMode;
+use ferrumc_inventories::hotbar::Hotbar;
+use ferrumc_inventories::inventory::Inventory;
+use ferrumc_messages::BlockPlacedEvent;
 use ferrumc_net::connection::StreamWriter;
 use ferrumc_net::packets::outgoing::block_change_ack::BlockChangeAck;
 use ferrumc_net::packets::outgoing::block_update::BlockUpdate;
@@ -9,15 +17,12 @@ use ferrumc_net::PlaceBlockReceiver;
 use ferrumc_net_codec::net_types::network_position::NetworkPosition;
 use ferrumc_net_codec::net_types::var_int::VarInt;
 use ferrumc_state::GlobalStateResource;
-use ferrumc_world::pos::BlockPos;
-use tracing::{debug, error, trace};
-
-use ferrumc_inventories::hotbar::Hotbar;
-use ferrumc_inventories::inventory::Inventory;
 use ferrumc_world::block_state_id::BlockStateId;
+use ferrumc_world::pos::BlockPos;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::str::FromStr;
+use tracing::{debug, error, trace};
 
 const ITEM_TO_BLOCK_MAPPING_FILE: &str =
     include_str!("../../../../../assets/data/item_to_block_mapping.json");
@@ -38,17 +43,12 @@ static ITEM_TO_BLOCK_MAPPING: Lazy<HashMap<i32, BlockStateId>> = Lazy::new(|| {
 pub fn handle(
     receiver: Res<PlaceBlockReceiver>,
     state: Res<GlobalStateResource>,
-    mut query: Query<(
-        Entity,
-        &StreamWriter,
-        &mut Inventory,
-        &Hotbar,
-        Option<&CreativeMode>,
-    )>,
+    mut query: Query<(Entity, &StreamWriter, &Inventory, &Hotbar, &PlayerDimension)>,
     pos_q: Query<(&Position, &CollisionBounds)>,
+    mut block_placed_events: MessageWriter<BlockPlacedEvent>,
 ) {
     'ev_loop: for (event, eid) in receiver.0.try_iter() {
-        let Ok((entity, conn, mut inventory, hotbar, creative_mode)) = query.get_mut(eid) else {
+        let Ok((entity, conn, inventory, hotbar, dimension)) = query.get_mut(eid) else {
             debug!("Could not get connection for entity {:?}", eid);
             continue;
         };
@@ -58,7 +58,7 @@ pub fn handle(
         }
         match event.hand.0 {
             0 => {
-                let Ok(slot) = hotbar.get_selected_item(&inventory) else {
+                let Ok(slot) = hotbar.get_selected_item(inventory) else {
                     error!("Could not fetch {:?}", eid);
                     continue 'ev_loop;
                 };
@@ -77,17 +77,20 @@ pub fn handle(
                         item_id.0, mapped_block_state_id
                     );
                     let pos: BlockPos = event.position.into();
-                    let mut chunk = ferrumc_utils::world::load_or_generate_mut(
+                    let Ok(mut chunk) = ferrumc_utils::world::load_or_generate_mut(
                         &state.0,
                         pos.chunk(),
-                        "overworld",
-                    )
-                    .expect("Failed to load or generate chunk");
+                        dimension.as_str(),
+                    ) else {
+                        error!("Failed to load or generate chunk");
+                        continue 'ev_loop;
+                    };
                     let Ok(block_clicked) = chunk.get_block(pos.chunk_block_pos()) else {
                         debug!("Failed to get block at position: {}", pos);
                         continue 'ev_loop;
                     };
                     trace!("Block clicked: {:?}", block_clicked);
+
                     // Use the face to determine the offset of the block to place
                     let offset_pos = pos
                         + match event.face.0 {
@@ -125,6 +128,8 @@ pub fn handle(
                         trace!("Block placement collided with entity");
                         continue 'ev_loop;
                     }
+
+                    // Send initial ACK
                     let packet = BlockChangeAck {
                         sequence: event.sequence,
                     };
@@ -133,41 +138,22 @@ pub fn handle(
                         continue 'ev_loop;
                     }
 
+                    // Place the block in the world
                     if let Err(err) = chunk.set_block(pos.chunk_block_pos(), *mapped_block_state_id)
                     {
                         error!("Failed to set block: {:?}", err);
                         continue 'ev_loop;
                     }
 
-                    // Consume item from inventory (survival mode only)
-                    if creative_mode.is_none() {
-                        let slot_index = hotbar.get_selected_inventory_index();
-                        if let Ok(Some(slot)) = inventory.get_item(slot_index) {
-                            let new_count = slot.count.0 - 1;
-                            if new_count <= 0 {
-                                // Remove the item completely
-                                if let Err(e) =
-                                    inventory.clear_slot_with_update(slot_index, entity)
-                                {
-                                    error!("Failed to clear slot: {:?}", e);
-                                }
-                            } else {
-                                // Decrement the count
-                                let mut new_slot = slot.clone();
-                                new_slot.count = VarInt::new(new_count);
-                                if let Err(e) =
-                                    inventory.set_item_with_update(slot_index, new_slot, entity)
-                                {
-                                    error!("Failed to update slot: {:?}", e);
-                                }
-                            }
-                        }
-                    }
+                    // Fire event for survival mod to consume the item
+                    let slot_index = hotbar.get_selected_inventory_index();
+                    block_placed_events.write(BlockPlacedEvent {
+                        player: entity,
+                        position: offset_pos,
+                        slot_index,
+                    });
 
-                    let ack_packet = BlockChangeAck {
-                        sequence: event.sequence,
-                    };
-
+                    // Send block update to client
                     let chunk_packet = BlockUpdate {
                         location: NetworkPosition {
                             x: offset_pos.pos.x,
@@ -180,6 +166,11 @@ pub fn handle(
                         error!("Failed to send block update packet: {:?}", err);
                         continue 'ev_loop;
                     }
+
+                    // Send final ACK
+                    let ack_packet = BlockChangeAck {
+                        sequence: event.sequence,
+                    };
                     if let Err(err) = conn.send_packet_ref(&ack_packet) {
                         error!("Failed to send block change ack packet: {:?}", err);
                         continue 'ev_loop;

@@ -8,6 +8,7 @@ use ferrumc_components::{
     player::{
         abilities::PlayerAbilities,
         attack_cooldown::AttackCooldown,
+        dimension::PlayerDimension,
         experience::Experience,
         fall_distance::FallDistance,
         gamemode::{GameMode, GameModeComponent},
@@ -106,6 +107,7 @@ pub fn accept_new_connections(
             rotation,
             on_ground: OnGround::default(),
             chunk_receiver: ChunkReceiver::default(),
+            dimension: PlayerDimension::Overworld, // TODO: Load from player data
             inventory,
             hotbar: Hotbar::default(),
             ender_chest,

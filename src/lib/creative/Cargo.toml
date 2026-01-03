@@ -16,10 +16,15 @@ ferrumc-api-server = { path = "../api-server" }
 ferrumc-commands = { workspace = true }
 ferrumc-components = { workspace = true }
 ferrumc-core = { workspace = true }
+ferrumc-inventories = { workspace = true }
 ferrumc-macros = { workspace = true }
 ferrumc-messages = { workspace = true }
 ferrumc-net = { workspace = true }
+ferrumc-net-codec = { workspace = true }
+ferrumc-state = { workspace = true }
 ferrumc-text = { workspace = true }
+ferrumc-utils = { workspace = true }
+ferrumc-world = { workspace = true }
 
 # ECS
 bevy_ecs = { workspace = true }

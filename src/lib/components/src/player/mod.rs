@@ -2,6 +2,7 @@ pub mod abilities;
 pub mod attack_cooldown;
 pub mod client_information;
 pub mod dead;
+pub mod dimension;
 pub mod experience;
 pub mod fall_distance;
 pub mod gamemode;

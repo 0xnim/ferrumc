@@ -36,17 +36,23 @@ pub fn handle_start_digging(
     block_behaviors: Res<BlockBehaviorRegistry>,
 ) {
     for event in events.read() {
-        debug!(
-            "Player {:?} started digging at {:?}",
-            event.player, event.position
-        );
-
         // Get player abilities to check for creative mode
         let Ok((_, writer, _, abilities)) = player_query.get_mut(event.player) else {
             warn!("Player {:?} not found in query", event.player);
             continue;
         };
-        let is_creative = abilities.creative_mode;
+
+        // Creative mode instant-break is handled by ferrumc-creative systems
+        if abilities.creative_mode {
+            continue;
+        }
+
+        debug!(
+            "Player {:?} started digging at {:?}",
+            event.player, event.position
+        );
+
+        let is_creative = false; // Survival mode only reaches here
 
         // --- 1. Get BlockStateId from the world ---
         let pos = event.position.clone().into();

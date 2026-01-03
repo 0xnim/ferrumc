@@ -63,6 +63,16 @@ impl ModSystem for CreativeMod {
 
         // Register component provider to add creative components to players
         api.register_player_component_provider(Arc::new(CreativeComponentProvider));
+
+        // Register creative gameplay systems
+        api.register_gameplay_systems(Box::new(|schedule| {
+            // Instant block breaking for creative mode
+            schedule.add_systems(systems::instant_break::handle_instant_break);
+            // Creative inventory slot handling
+            schedule.add_systems(systems::creative_slot::handle);
+            // Creative pick item (spawn item when not in inventory)
+            schedule.add_systems(systems::pick_item::handle_pick_item);
+        }));
     }
 
     fn assets_loaded(&self, _api: &mut dyn ServerApi) {
