@@ -1,4 +1,5 @@
 use bevy_ecs::prelude::{Entity, Query, Res};
+use ferrumc_components::player::dimension::PlayerDimension;
 use ferrumc_core::transform::position::Position;
 use ferrumc_macros::block;
 use ferrumc_net::connection::StreamWriter;
@@ -12,10 +13,10 @@ use tracing::warn;
 pub fn handle(
     ev: Res<PlayerLoadedReceiver>,
     state: Res<GlobalStateResource>,
-    query: Query<(Entity, &Position, &StreamWriter)>,
+    query: Query<(Entity, &Position, &StreamWriter, &PlayerDimension)>,
 ) {
     for (_, player) in ev.0.try_iter() {
-        let Ok((entity, player_pos, conn)) = query.get(player) else {
+        let Ok((entity, player_pos, conn, dimension)) = query.get(player) else {
             warn!("Player position not found in query.");
             continue;
         };
@@ -31,7 +32,7 @@ pub fn handle(
             player_pos.y as i32,
             player_pos.z as i32,
         );
-        let head_block = state.0.world.get_block_and_fetch(pos, "overworld");
+        let head_block = state.0.world.get_block_and_fetch(pos, dimension.as_str());
         if let Ok(head_block) = head_block {
             if head_block == block!("air") {
                 tracing::info!(

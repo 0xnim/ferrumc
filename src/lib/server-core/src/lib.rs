@@ -42,10 +42,13 @@ impl ModSystem for ServerCoreMod {
         // Commands are registered via #[command] macro and ctor
     }
 
-    fn start_server_side(&self, _api: &mut dyn ServerApi) {
+    fn start_server_side(&self, api: &mut dyn ServerApi) {
         info!("Server Core mod registering systems...");
-        // Systems are registered by the binary directly since they need
-        // access to the Bevy schedule. See systems module for exports.
+
+        // Register gameplay systems via mod API
+        api.register_gameplay_systems(Box::new(|schedule| {
+            schedule.add_systems(systems::gamemode_change::handle);
+        }));
     }
 
     fn assets_loaded(&self, _api: &mut dyn ServerApi) {

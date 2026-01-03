@@ -72,6 +72,8 @@ impl ModSystem for CreativeMod {
             schedule.add_systems(systems::creative_slot::handle);
             // Creative pick item (spawn item when not in inventory)
             schedule.add_systems(systems::pick_item::handle_pick_item);
+            // Sync CreativeMode component with player abilities
+            schedule.add_systems(systems::gamemode_sync::handle);
         }));
     }
 

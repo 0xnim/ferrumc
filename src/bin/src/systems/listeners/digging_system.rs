@@ -7,6 +7,7 @@ use ferrumc_api::behavior::BlockContext;
 use ferrumc_api::world::Dimension;
 use ferrumc_api_server::{BlockBehaviorRegistry, WorldAccessorResource};
 use ferrumc_components::player::abilities::PlayerAbilities;
+use ferrumc_components::player::dimension::PlayerDimension;
 use ferrumc_components::player::gameplay_state::digging::PlayerDigging;
 use ferrumc_data::blocks::types::Block;
 use ferrumc_messages::player_digging::*;
@@ -23,6 +24,7 @@ type DiggingPlayerQuery<'a> = (
     &'a StreamWriter,
     Option<&'a PlayerDigging>,
     &'a PlayerAbilities,
+    &'a PlayerDimension,
 );
 
 /// Handles the PlayerStartDiggingEvent.
@@ -37,7 +39,8 @@ pub fn handle_start_digging(
 ) {
     for event in events.read() {
         // Get player abilities to check for creative mode
-        let Ok((_, writer, _, abilities)) = player_query.get_mut(event.player) else {
+        let Ok((_, writer, _, abilities, player_dimension)) = player_query.get_mut(event.player)
+        else {
             warn!("Player {:?} not found in query", event.player);
             continue;
         };
@@ -56,7 +59,11 @@ pub fn handle_start_digging(
 
         // --- 1. Get BlockStateId from the world ---
         let pos = event.position.clone().into();
-        let dimension = Dimension::Overworld; // TODO: get dimension from player
+        let dimension = match player_dimension {
+            PlayerDimension::Overworld => Dimension::Overworld,
+            PlayerDimension::Nether => Dimension::Nether,
+            PlayerDimension::TheEnd => Dimension::TheEnd,
+        };
         let block_state_id = match state.0.world.get_block_and_fetch(pos, dimension.as_str()) {
             Ok(id) => id,
             Err(e) => {
@@ -163,7 +170,7 @@ pub fn handle_cancel_digging(
         commands.entity(event.player).remove::<PlayerDigging>();
 
         // Acknowledge the cancellation.
-        if let Ok((_, writer, _, _)) = player_query.get_mut(event.player) {
+        if let Ok((_, writer, _, _, _)) = player_query.get_mut(event.player) {
             let ack_packet = BlockChangeAck {
                 sequence: event.sequence,
             };
@@ -188,7 +195,7 @@ pub fn handle_finish_digging(
     mut block_break_writer: MessageWriter<ferrumc_messages::BlockBrokenEvent>,
 ) {
     for event in events.read() {
-        let Ok((_player_entity, writer, digging_opt, _abilities)) =
+        let Ok((_player_entity, writer, digging_opt, _abilities, player_dimension)) =
             player_query.get_mut(event.player)
         else {
             warn!(
@@ -243,16 +250,17 @@ pub fn handle_finish_digging(
             );
 
             let pos = event.position.clone().into();
-            let real_block_state = match state.0.world.get_block_and_fetch(pos, "overworld") {
-                Ok(id) => id,
-                Err(e) => {
-                    error!(
-                        "Failed to get real block state for anti-cheat revert: {:?}",
-                        e
-                    );
-                    BlockStateId::default()
-                }
-            };
+            let real_block_state =
+                match state.0.world.get_block_and_fetch(pos, player_dimension.as_str()) {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!(
+                            "Failed to get real block state for anti-cheat revert: {:?}",
+                            e
+                        );
+                        BlockStateId::default()
+                    }
+                };
 
             let revert_packet = BlockUpdate {
                 location: event.position.clone(),
@@ -278,6 +286,7 @@ pub fn handle_finish_digging(
                 &state,
                 &broadcast_query,
                 &event.position,
+                player_dimension.as_str(),
                 &mut block_break_writer,
             ) {
                 error!("Error handling finished digging: {:?}", e);
@@ -303,10 +312,11 @@ fn break_block(
     state: &Res<GlobalStateResource>,
     broadcast_query: &Query<(Entity, &StreamWriter)>,
     position: &ferrumc_net_codec::net_types::network_position::NetworkPosition,
+    dimension: &str,
     block_break_writer: &mut MessageWriter<ferrumc_messages::BlockBrokenEvent>,
 ) -> Result<(), BinaryError> {
     let pos: BlockPos = position.clone().into();
-    let mut chunk = ferrumc_utils::world::load_or_generate_mut(&state.0, pos.chunk(), "overworld")
+    let mut chunk = ferrumc_utils::world::load_or_generate_mut(&state.0, pos.chunk(), dimension)
         .expect("Failed to load or generate chunk");
     chunk
         .set_block(pos.chunk_block_pos(), BlockStateId::default())

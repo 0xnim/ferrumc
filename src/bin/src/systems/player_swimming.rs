@@ -1,5 +1,6 @@
 use bevy_ecs::prelude::*;
 use bevy_math::DVec3;
+use ferrumc_components::player::dimension::PlayerDimension;
 use ferrumc_components::player::swimming::SwimmingState;
 use ferrumc_core::identity::player_identity::PlayerIdentity;
 use ferrumc_core::transform::position::Position;
@@ -16,7 +17,11 @@ use tracing::error;
 const PLAYER_EYE_HEIGHT: f64 = 1.62;
 
 /// Check if a player is in water by testing at eye level
-fn is_player_in_water(state: &ferrumc_state::GlobalState, pos: &Position) -> bool {
+fn is_player_in_water(
+    state: &ferrumc_state::GlobalState,
+    pos: &Position,
+    dimension: &PlayerDimension,
+) -> bool {
     let eye_pos = DVec3::new(pos.x, pos.y + PLAYER_EYE_HEIGHT, pos.z)
         .floor()
         .as_ivec3();
@@ -25,7 +30,7 @@ fn is_player_in_water(state: &ferrumc_state::GlobalState, pos: &Position) -> boo
 
     state
         .world
-        .get_block_and_fetch(pos, "overworld")
+        .get_block_and_fetch(pos, dimension.as_str())
         .map(|current_block| match_block!("water", current_block))
         .unwrap_or(false)
 }
@@ -33,12 +38,12 @@ fn is_player_in_water(state: &ferrumc_state::GlobalState, pos: &Position) -> boo
 /// System that detects when players enter/exit water and updates their swimming state
 /// Also broadcasts the swimming pose to all connected clients
 pub fn detect_player_swimming(
-    mut swimmers: Query<(&PlayerIdentity, &Position, &mut SwimmingState)>,
+    mut swimmers: Query<(&PlayerIdentity, &Position, &mut SwimmingState, &PlayerDimension)>,
     all_connections: Query<(Entity, &StreamWriter)>,
     state: Res<GlobalStateResource>,
 ) {
-    for (identity, pos, mut swimming_state) in swimmers.iter_mut() {
-        let in_water = is_player_in_water(&state.0, pos);
+    for (identity, pos, mut swimming_state, dimension) in swimmers.iter_mut() {
+        let in_water = is_player_in_water(&state.0, pos, dimension);
 
         if in_water && !swimming_state.is_swimming {
             swimming_state.is_swimming = true;

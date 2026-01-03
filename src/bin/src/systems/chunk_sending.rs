@@ -1,5 +1,6 @@
 use bevy_ecs::prelude::{Entity, Query, Res};
 use bevy_math::IVec3;
+use ferrumc_components::player::dimension::PlayerDimension;
 use ferrumc_config::server_config::get_global_config;
 use ferrumc_core::chunks::chunk_receiver::ChunkReceiver;
 use ferrumc_core::transform::position::Position;
@@ -18,10 +19,10 @@ use std::sync::atomic::Ordering;
 // calculating which chunks are required is figured out elsewhere
 // TODO: Respect chunks_per_tick limit
 pub fn handle(
-    mut query: Query<(Entity, &StreamWriter, &mut ChunkReceiver, &Position)>,
+    mut query: Query<(Entity, &StreamWriter, &mut ChunkReceiver, &Position, &PlayerDimension)>,
     state: Res<GlobalStateResource>,
 ) {
-    for (eid, conn, mut chunk_receiver, pos) in query.iter_mut() {
+    for (eid, conn, mut chunk_receiver, pos, dimension) in query.iter_mut() {
         if !state.0.players.is_connected(eid) {
             continue; // Skip if the player is not connected
         }
@@ -65,18 +66,20 @@ pub fn handle(
         })
         .expect("Failed to send SetCenterChunk");
 
+        let dimension_str = dimension.as_str().to_string();
         for coordinates in needed_chunks.into_iter().map(|c| ChunkPos::new(c.0, c.1)) {
             chunk_receiver
                 .loaded
                 .insert((coordinates.x(), coordinates.z()));
             let state = state.clone();
             let is_compressed = conn.compress.load(Ordering::Relaxed);
+            let dim = dimension_str.clone();
             batch.execute({
                 move || {
                     let chunk = ferrumc_utils::world::load_or_generate_chunk(
                         &state.0,
                         coordinates,
-                        "overworld",
+                        &dim,
                     )
                     .expect("Failed to load or generate chunk");
                     let packet = ChunkAndLightData::from_chunk(coordinates, &chunk)
