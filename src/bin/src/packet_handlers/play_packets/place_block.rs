@@ -1,6 +1,7 @@
 use bevy_ecs::prelude::{Entity, Query, Res};
 use ferrumc_core::collisions::bounds::CollisionBounds;
 use ferrumc_core::transform::position::Position;
+use ferrumc_creative::CreativeMode;
 use ferrumc_net::connection::StreamWriter;
 use ferrumc_net::packets::outgoing::block_change_ack::BlockChangeAck;
 use ferrumc_net::packets::outgoing::block_update::BlockUpdate;
@@ -37,11 +38,17 @@ static ITEM_TO_BLOCK_MAPPING: Lazy<HashMap<i32, BlockStateId>> = Lazy::new(|| {
 pub fn handle(
     receiver: Res<PlaceBlockReceiver>,
     state: Res<GlobalStateResource>,
-    query: Query<(Entity, &StreamWriter, &Inventory, &Hotbar)>,
+    mut query: Query<(
+        Entity,
+        &StreamWriter,
+        &mut Inventory,
+        &Hotbar,
+        Option<&CreativeMode>,
+    )>,
     pos_q: Query<(&Position, &CollisionBounds)>,
 ) {
     'ev_loop: for (event, eid) in receiver.0.try_iter() {
-        let Ok((entity, conn, inventory, hotbar)) = query.get(eid) else {
+        let Ok((entity, conn, mut inventory, hotbar, creative_mode)) = query.get_mut(eid) else {
             debug!("Could not get connection for entity {:?}", eid);
             continue;
         };
@@ -51,7 +58,7 @@ pub fn handle(
         }
         match event.hand.0 {
             0 => {
-                let Ok(slot) = hotbar.get_selected_item(inventory) else {
+                let Ok(slot) = hotbar.get_selected_item(&inventory) else {
                     error!("Could not fetch {:?}", eid);
                     continue 'ev_loop;
                 };
@@ -131,6 +138,32 @@ pub fn handle(
                         error!("Failed to set block: {:?}", err);
                         continue 'ev_loop;
                     }
+
+                    // Consume item from inventory (survival mode only)
+                    if creative_mode.is_none() {
+                        let slot_index = hotbar.get_selected_inventory_index();
+                        if let Ok(Some(slot)) = inventory.get_item(slot_index) {
+                            let new_count = slot.count.0 - 1;
+                            if new_count <= 0 {
+                                // Remove the item completely
+                                if let Err(e) =
+                                    inventory.clear_slot_with_update(slot_index, entity)
+                                {
+                                    error!("Failed to clear slot: {:?}", e);
+                                }
+                            } else {
+                                // Decrement the count
+                                let mut new_slot = slot.clone();
+                                new_slot.count = VarInt::new(new_count);
+                                if let Err(e) =
+                                    inventory.set_item_with_update(slot_index, new_slot, entity)
+                                {
+                                    error!("Failed to update slot: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+
                     let ack_packet = BlockChangeAck {
                         sequence: event.sequence,
                     };
