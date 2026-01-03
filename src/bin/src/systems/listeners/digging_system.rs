@@ -3,6 +3,8 @@ use ferrumc_world::pos::BlockPos;
 use std::time::{Duration, Instant};
 
 use crate::BinaryError;
+use ferrumc_api::behavior::{BlockContext, BlockPos as ApiBlockPos};
+use ferrumc_api_server::BlockBehaviorRegistry;
 use ferrumc_components::player::abilities::PlayerAbilities;
 use ferrumc_components::player::gameplay_state::digging::PlayerDigging;
 use ferrumc_data::blocks::types::Block;
@@ -15,21 +17,34 @@ use ferrumc_world::block_state_id::BlockStateId;
 use tracing::{debug, error, warn};
 
 // A query for just the components needed to acknowledge a dig packet
-type DiggingPlayerQuery<'a> = (Entity, &'a StreamWriter, Option<&'a PlayerDigging>);
+type DiggingPlayerQuery<'a> = (
+    Entity,
+    &'a StreamWriter,
+    Option<&'a PlayerDigging>,
+    &'a PlayerAbilities,
+);
 
 /// Handles the PlayerStartDiggingEvent.
 /// This system starts the digging timer.
 pub fn handle_start_digging(
     mut commands: Commands,
     mut events: MessageReader<PlayerStartedDigging>,
-    mut player_query: Query<DiggingPlayerQuery, With<PlayerAbilities>>,
+    mut player_query: Query<DiggingPlayerQuery>,
     state: Res<GlobalStateResource>,
+    block_behaviors: Res<BlockBehaviorRegistry>,
 ) {
     for event in events.read() {
         debug!(
             "Player {:?} started digging at {:?}",
             event.player, event.position
         );
+
+        // Get player abilities to check for creative mode
+        let Ok((_, writer, _, abilities)) = player_query.get_mut(event.player) else {
+            warn!("Player {:?} not found in query", event.player);
+            continue;
+        };
+        let is_creative = abilities.creative_mode;
 
         // --- 1. Get BlockStateId from the world ---
         let pos = event.position.clone().into();
@@ -46,6 +61,7 @@ pub fn handle_start_digging(
                 continue;
             }
         };
+
         // --- 2. Get Block Name ---
         let Some(block_name) =
             ferrumc_registry::lookup_blockstate_name(&VarInt::from(block_state_id).0.to_string())
@@ -55,16 +71,28 @@ pub fn handle_start_digging(
         };
 
         // --- 3. Get Hardness ---
-        // Get Hardness directly using the ID
-        let Some(block_data) = Block::by_id(block_state_id.raw()) else {
-            warn!(
-                "Could not find block data for BlockStateId: {}",
-                block_state_id
-            );
-            continue;
+        // Create block context for behavior queries
+        let block_ctx = BlockContext {
+            position: ApiBlockPos::new(
+                event.position.x,
+                event.position.y as i32,
+                event.position.z,
+            ),
+            block_id: block_name.to_string(),
+            actor: Some(event.player),
+            is_server: true,
+            actor_creative: is_creative,
         };
 
-        let hardness = block_data.hardness;
+        // First check behaviors for hardness override (e.g., creative mode instant break)
+        let behavior_hardness = block_behaviors.get_hardness(&block_name, &block_ctx);
+
+        // Fallback to vanilla hardness from block data
+        let hardness = behavior_hardness.unwrap_or_else(|| {
+            Block::by_id(block_state_id.raw())
+                .map(|b| b.hardness)
+                .unwrap_or(1.0) // Default hardness if block not found
+        });
 
         // --- 4. Check for unbreakable block ---
         if hardness < 0.0 {
@@ -75,29 +103,25 @@ pub fn handle_start_digging(
 
             // We must still send an ACK to the client.
             // But we do not add the PlayerDigging component.
-            if let Ok((_, writer, _)) = player_query.get_mut(event.player) {
-                let ack_packet = BlockChangeAck {
-                    sequence: event.sequence,
-                };
-                if let Err(e) = writer.send_packet_ref(&ack_packet) {
-                    error!(
-                        "Failed to send start_dig ACK to {:?}: {:?}",
-                        event.player, e
-                    );
-                }
+            let ack_packet = BlockChangeAck {
+                sequence: event.sequence,
+            };
+            if let Err(e) = writer.send_packet_ref(&ack_packet) {
+                error!(
+                    "Failed to send start_dig ACK to {:?}: {:?}",
+                    event.player, e
+                );
             }
             continue; // Move to the next event
         }
 
         // --- 5. Calculate break time ---
-        // TODO: This is a placeholder. A real calculation would
-        // check for tools, effects, etc.
         let break_time = if hardness == 0.0 {
-            // Instabreak blocks like air, grass, flowers
+            // Instabreak blocks (air, grass, flowers, or creative mode)
             Duration::from_millis(0)
         } else {
             // Placeholder: 1.5s per hardness
-            // TODO: replace with real formula
+            // TODO: replace with real formula including tools, effects, etc.
             Duration::from_secs_f32(hardness * 1.5)
         };
 
@@ -109,16 +133,14 @@ pub fn handle_start_digging(
         });
 
         // --- 7. Acknowledge the client ---
-        if let Ok((_, writer, _)) = player_query.get_mut(event.player) {
-            let ack_packet = BlockChangeAck {
-                sequence: event.sequence,
-            };
-            if let Err(e) = writer.send_packet_ref(&ack_packet) {
-                error!(
-                    "Failed to send start_dig ACK to {:?}: {:?}",
-                    event.player, e
-                );
-            }
+        let ack_packet = BlockChangeAck {
+            sequence: event.sequence,
+        };
+        if let Err(e) = writer.send_packet_ref(&ack_packet) {
+            error!(
+                "Failed to send start_dig ACK to {:?}: {:?}",
+                event.player, e
+            );
         }
     }
 }
@@ -137,7 +159,7 @@ pub fn handle_cancel_digging(
         commands.entity(event.player).remove::<PlayerDigging>();
 
         // Acknowledge the cancellation.
-        if let Ok((_, writer, _)) = player_query.get_mut(event.player) {
+        if let Ok((_, writer, _, _)) = player_query.get_mut(event.player) {
             let ack_packet = BlockChangeAck {
                 sequence: event.sequence,
             };
@@ -162,7 +184,9 @@ pub fn handle_finish_digging(
     mut block_break_writer: MessageWriter<ferrumc_messages::BlockBrokenEvent>,
 ) {
     for event in events.read() {
-        let Ok((_player_entity, writer, digging_opt)) = player_query.get_mut(event.player) else {
+        let Ok((_player_entity, writer, digging_opt, _abilities)) =
+            player_query.get_mut(event.player)
+        else {
             warn!(
                 "Player {:?} sent FinishDigging but query failed.",
                 event.player
