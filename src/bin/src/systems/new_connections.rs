@@ -1,5 +1,7 @@
 use bevy_ecs::prelude::{Commands, MessageWriter, Res, Resource};
 use crossbeam_channel::Receiver;
+use ferrumc_api_server::provider::{CachedPlayerData, PlayerSetupContext};
+use ferrumc_api_server::ComponentProviderRegistry;
 use ferrumc_components::{
     active_effects::ActiveEffects,
     health::Health,
@@ -32,6 +34,7 @@ pub fn accept_new_connections(
     mut cmd: Commands,
     new_connections: Res<NewConnectionRecv>,
     state: Res<GlobalStateResource>,
+    component_providers: Res<ComponentProviderRegistry>,
     mut join_events: MessageWriter<PlayerJoined>,
 ) {
     if new_connections.0.is_empty() {
@@ -41,6 +44,13 @@ pub fn accept_new_connections(
         let return_sender = new_connection.entity_return;
 
         // --- 1. Load all data from cache ---
+        let cached_data = state
+            .0
+            .player_cache
+            .get_and_remove(&new_connection.player_identity.uuid);
+
+        let is_new_player = cached_data.is_none();
+
         let (
             abilities,
             gamemode,
@@ -52,23 +62,21 @@ pub fn accept_new_connections(
             experience,
             ender_chest,
             active_effects,
-        ) = state
-            .0
-            .player_cache
-            .get_and_remove(&new_connection.player_identity.uuid)
+        ) = cached_data
+            .as_ref()
             .map(|data| {
                 // A. Found in cache, use cached data
                 (
-                    data.abilities,
-                    data.gamemode,
+                    data.abilities.clone(),
+                    data.gamemode.clone(),
                     data.position,
                     data.rotation,
-                    data.inventory,
-                    data.health,
-                    data.hunger,
-                    data.experience,
-                    data.ender_chest,
-                    data.active_effects,
+                    data.inventory.clone(),
+                    data.health.clone(),
+                    data.hunger.clone(),
+                    data.experience.clone(),
+                    data.ender_chest.clone(),
+                    data.active_effects.clone(),
                 )
             })
             .unwrap_or_else(|| {
@@ -120,6 +128,18 @@ pub fn accept_new_connections(
                 has_received_keep_alive: true,
             },
         ));
+
+        // --- 4. Let mods add their components via providers ---
+        let setup_ctx = PlayerSetupContext {
+            uuid: new_connection.player_identity.uuid.as_u128(),
+            username: new_connection.player_identity.username.clone(),
+            is_new_player,
+            cached_data: cached_data.map(|_| CachedPlayerData::default()), // TODO: Convert actual cached data
+        };
+
+        for provider in component_providers.get_player_providers() {
+            provider.provide_player_components(&mut entity_commands, &setup_ctx);
+        }
 
         let entity_id = entity_commands.id();
 

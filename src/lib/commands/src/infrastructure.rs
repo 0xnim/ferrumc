@@ -7,11 +7,15 @@ use std::{
     sync::{Arc, LazyLock, RwLock},
 };
 
-use crate::{graph::CommandGraph, Command};
+use crate::{builder::BuiltCommand, graph::CommandGraph, Command};
 
 static COMMANDS: LazyLock<DashMap<&'static str, Arc<Command>>> = LazyLock::new(DashMap::new);
 static COMMAND_GRAPH: LazyLock<RwLock<CommandGraph>> =
     LazyLock::new(|| RwLock::new(CommandGraph::default()));
+
+/// Dynamic commands registered via the mod API.
+static DYNAMIC_COMMANDS: LazyLock<DashMap<String, Arc<BuiltCommand>>> =
+    LazyLock::new(DashMap::new);
 
 thread_local! {
     static SYSTEMS_TO_BE_REGISTERED: RefCell<Vec<ScheduleConfigs<ScheduleSystem>>> = RefCell::new(Vec::new());
@@ -67,4 +71,39 @@ pub fn find_command(input: &str) -> Option<Arc<Command>> {
     } else {
         None
     }
+}
+
+// ============================================================================
+// Dynamic Command Functions (for mod API)
+// ============================================================================
+
+/// Registers a dynamic command from the mod API.
+///
+/// This adds the command to:
+/// - COMMANDS storage (for command resolution)
+/// - Command graph (for autocomplete)
+/// - Dynamic commands storage (for dispatch)
+pub fn register_dynamic_command(cmd: BuiltCommand) {
+    let name = cmd.command.name;
+
+    // Add to COMMANDS for resolution (find_command uses this)
+    COMMANDS.insert(name, cmd.command.clone());
+
+    // Add to command graph for autocomplete
+    if let Ok(mut graph) = COMMAND_GRAPH.write() {
+        graph.push(cmd.command.clone());
+    }
+
+    // Store for dispatch
+    DYNAMIC_COMMANDS.insert(name.to_string(), Arc::new(cmd));
+}
+
+/// Gets a dynamic command by name.
+pub fn get_dynamic_command(name: &str) -> Option<Arc<BuiltCommand>> {
+    DYNAMIC_COMMANDS.get(name).map(|r| Arc::clone(&r))
+}
+
+/// Checks if a dynamic command exists with the given name.
+pub fn has_dynamic_command(name: &str) -> bool {
+    DYNAMIC_COMMANDS.contains_key(name)
 }

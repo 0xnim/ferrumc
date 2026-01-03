@@ -9,6 +9,10 @@ edition = "2021"
 [dependencies]
 thiserror = { workspace = true }
 
+ferrumc-api = { workspace = true }
+ferrumc-api-server = { workspace = true }
+ferrumc-creative = { workspace = true }
+ferrumc-survival = { workspace = true }
 ferrumc-core = { workspace = true }
 bevy_ecs = { workspace = true }
 ferrumc-scheduler = { workspace = true }
@@ -31,7 +35,7 @@ ferrumc-macros = { workspace = true }
 ferrumc-general-purpose = { workspace = true }
 ferrumc-state = { workspace = true }
 ferrumc-commands = { workspace = true }
-ferrumc-default-commands = { workspace = true }
+ferrumc-server-core = { workspace = true }
 ferrumc-world-gen = { workspace = true }
 ferrumc-threadpool = { workspace = true }
 ferrumc-inventories = { workspace = true }

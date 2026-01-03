@@ -1,0 +1,30 @@
+[package]
+name = "ferrumc-api-server"
+description = "FerrumC Server-side API implementation"
+edition.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# API crate
+ferrumc-api = { path = "../api" }
+ferrumc-commands = { path = "../commands" }
+
+# Core crates for world access
+ferrumc-state = { path = "../core/state" }
+ferrumc-world = { path = "../world" }
+ferrumc-core = { workspace = true }
+
+# ECS and concurrency
+bevy_ecs = { workspace = true }
+bevy_math = { workspace = true }
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }

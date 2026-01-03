@@ -1,0 +1,14 @@
+[package]
+name = "ferrumc-api"
+description = "FerrumC Mod API - Core traits for creating mods"
+edition.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Minimal dependencies - API traits only, no server internals
+bevy_ecs = { workspace = true }
+thiserror = { workspace = true }
+ferrumc-commands = { path = "../commands" }

@@ -19,7 +19,9 @@ use crate::systems::shutdown_systems::register_shutdown_systems;
 use bevy_ecs::prelude::World;
 use bevy_ecs::schedule::{ExecutorKind, Schedule};
 use crossbeam_channel::Sender;
-use ferrumc_commands::infrastructure::register_command_systems;
+use ferrumc_api_server::{ModLoader, ServerApiImpl};
+use ferrumc_commands::dispatch::dispatch_dynamic_commands;
+use ferrumc_commands::infrastructure::{register_command_systems, register_dynamic_command};
 use ferrumc_config::server_config::get_global_config;
 use ferrumc_net::connection::{handle_connection, NewConnection};
 use ferrumc_net::server::create_server_listener;
@@ -71,11 +73,47 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     let (shutdown_response_send, shutdown_response_recv) = crossbeam_channel::unbounded();
 
     // =========================================================================
-    // PHASE 3: Register ECS Systems and Resources
+    // PHASE 3: Initialize Mod API and Load Mods
     // =========================================================================
 
-    // Initialize default server commands (e.g., /stop, /help, etc.)
-    ferrumc_default_commands::init();
+    // Create mod loader and resolve dependencies
+    let mut mod_loader = ModLoader::new();
+    if let Err(e) = mod_loader.resolve_dependencies() {
+        error!("Failed to resolve mod dependencies: {}", e);
+        return Err(BinaryError::Custom(format!(
+            "Mod dependency resolution failed: {}",
+            e
+        )));
+    }
+
+    // Create server API for mods to register content
+    let mut api = ServerApiImpl::new();
+
+    // Call start() on all mods - register behaviors, commands, content types
+    info!("Initializing {} mod(s)...", mod_loader.mod_count());
+    for mod_system in mod_loader.mods_in_order() {
+        debug!("Calling start() on mod: {}", mod_system.mod_id());
+        mod_system.start(&mut api);
+    }
+
+    // Register dynamic commands collected from mods
+    let commands = api.take_commands();
+    if !commands.is_empty() {
+        debug!("Registering {} dynamic command(s)...", commands.len());
+        for cmd in commands {
+            debug!("  - /{}", cmd.command.name);
+            register_dynamic_command(cmd);
+        }
+    }
+
+    // =========================================================================
+    // PHASE 4: Register ECS Systems and Resources
+    // =========================================================================
+
+    // Ensure mod crates are linked (commands register via ctor)
+    let _ = ferrumc_server_core::ServerCoreMod;
+    let _ = ferrumc_survival::SurvivalMod;
+    let _ = ferrumc_creative::CreativeMod;
 
     // Wrap global state for ECS resource access
     let global_state_res = GlobalStateResource(global_state.clone());
@@ -86,14 +124,44 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     // Register shared resources (connection receiver, global state, etc.)
     register_resources(&mut ecs_world, new_conn_recv, global_state_res);
 
+    // Insert behavior registries as ECS resources (for systems to access)
+    let (block_behaviors, entity_behaviors, item_behaviors, component_providers) =
+        api.into_registries();
+    ecs_world.insert_resource(block_behaviors);
+    ecs_world.insert_resource(entity_behaviors);
+    ecs_world.insert_resource(item_behaviors);
+    ecs_world.insert_resource(component_providers);
+
+    // Insert mod-specific resources
+    ecs_world.insert_resource(ferrumc_survival::systems::damage_test::DamageTestTimer::default());
+
+    // Recreate API for server-side initialization (registries are now in ECS)
+    let mut api = ServerApiImpl::new();
+
+    // Call start_server_side() on all mods - register systems, event listeners
+    for mod_system in mod_loader.mods_in_order() {
+        debug!("Calling start_server_side() on mod: {}", mod_system.mod_id());
+        mod_system.start_server_side(&mut api);
+    }
+
     // Build the timed scheduler with all periodic schedules (tick, sync, keepalive)
     let mut timed = build_timed_scheduler();
+
+    // Call assets_loaded() and assets_finalize() on all mods
+    for mod_system in mod_loader.mods_in_order() {
+        debug!("Calling assets_loaded() on mod: {}", mod_system.mod_id());
+        mod_system.assets_loaded(&mut api);
+    }
+    for mod_system in mod_loader.mods_in_order() {
+        debug!("Calling assets_finalize() on mod: {}", mod_system.mod_id());
+        mod_system.assets_finalize(&mut api);
+    }
 
     // Register systems that run on shutdown (save world, disconnect players, etc.)
     register_shutdown_systems(&mut shutdown_schedule);
 
     // =========================================================================
-    // PHASE 4: Start Network Thread
+    // PHASE 5: Start Network Thread
     // =========================================================================
 
     // Spawn the TCP connection acceptor on a dedicated thread with its own Tokio runtime
@@ -111,7 +179,7 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     );
 
     // =========================================================================
-    // PHASE 5: Main Scheduler Loop
+    // PHASE 6: Main Scheduler Loop
     // =========================================================================
 
     // Maximum number of schedules to run in a single iteration before yielding.
@@ -209,7 +277,7 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     }
 
     // =========================================================================
-    // PHASE 6: Graceful Shutdown
+    // PHASE 7: Graceful Shutdown
     // =========================================================================
 
     // Run shutdown systems (save world, disconnect players, cleanup)
@@ -249,7 +317,8 @@ fn build_timed_scheduler() -> Scheduler {
         s.set_executor_kind(ExecutorKind::SingleThreaded);
         register_packet_handlers(s); // Handle incoming packets from players
         register_player_systems(s); // Update player state (position, inventory, etc.)
-        register_command_systems(s); // Process queued commands
+        s.add_systems(dispatch_dynamic_commands); // Dispatch mod-registered commands (runs first)
+        register_command_systems(s); // Process macro-generated commands
         register_game_systems(s); // General game logic
         register_gameplay_listeners(s); // Event listeners for gameplay events
         register_physics(s); // Physics systems (movement, collision, etc.)

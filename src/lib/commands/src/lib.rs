@@ -6,9 +6,12 @@ use std::sync::{Arc, LazyLock};
 use arg::CommandArgumentNode;
 
 pub mod arg;
+pub mod builder;
 mod ctx;
+pub mod dispatch;
 pub mod errors;
 pub mod graph;
+pub mod handler;
 pub mod infrastructure;
 mod input;
 pub mod messages;
@@ -21,6 +24,10 @@ use ferrumc_nbt::NBT;
 use ferrumc_text::TextComponent;
 pub use input::*;
 pub use sender::*;
+
+// Re-export builder API types for convenience
+pub use builder::{BuiltCommand, CommandBuilder};
+pub use handler::{CommandHandler, CommandResult};
 
 /// An instance of a command.
 #[derive(Debug, Clone, PartialEq)]

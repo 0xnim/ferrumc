@@ -15,8 +15,11 @@ members = [
     "src/bin",
     "src/lib/adapters/anvil",
     "src/lib/adapters/nbt",
+    "src/lib/api",
+    "src/lib/api-server",
     "src/lib/commands",
-    "src/lib/default_commands",
+    "src/lib/creative",
+    "src/lib/server-core",
     "src/lib/core",
     "src/lib/core/state",
     "src/lib/derive_macros",
@@ -25,6 +28,7 @@ members = [
     "src/lib/net/crates/encryption",
     "src/lib/plugins",
     "src/lib/storage",
+    "src/lib/survival",
     "src/lib/text",
     "src/lib/utils",
     "src/lib/utils/general_purpose",
@@ -98,9 +102,13 @@ debug = true
 [workspace.dependencies]
 # Workspace members
 ferrumc-anvil = { path = "src/lib/adapters/anvil" }
+ferrumc-api = { path = "src/lib/api" }
+ferrumc-api-server = { path = "src/lib/api-server" }
 ferrumc-config = { path = "src/lib/config" }
+ferrumc-creative = { path = "src/lib/creative" }
+ferrumc-survival = { path = "src/lib/survival" }
 ferrumc-core = { path = "src/lib/core" }
-ferrumc-default-commands = { path = "src/lib/default_commands" }
+ferrumc-server-core = { path = "src/lib/server-core" }
 ferrumc-commands = { path = "src/lib/commands" }
 ferrumc-general-purpose = { path = "src/lib/utils/general_purpose" }
 ferrumc-logging = { path = "src/lib/utils/logging" }
