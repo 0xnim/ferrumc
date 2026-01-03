@@ -1,3 +1,7 @@
+//! Gamemode change handler system.
+//!
+//! Listens for `PlayerGameModeChanged` events and applies all game logic.
+
 use bevy_ecs::prelude::*;
 use ferrumc_components::player::abilities::PlayerAbilities;
 use ferrumc_components::player::gamemode::GameModeComponent;
@@ -10,7 +14,7 @@ use ferrumc_net::packets::outgoing::system_message::SystemMessagePacket;
 use ferrumc_text::{Color, NamedColor, TextComponent, TextComponentBuilder};
 use tracing::{error, info};
 
-/// Listens for `ChangeGameModeEvent` and applies all game logic.
+/// Listens for `PlayerGameModeChanged` and applies all game logic.
 pub fn handle(
     mut events: MessageReader<PlayerGameModeChanged>,
     mut player_query: Query<(
@@ -35,7 +39,7 @@ pub fn handle(
 
         // Update server-side components
         gamemode.0 = new_mode;
-        new_mode.update_abilities(&mut abilities); // Use the helper you wrote
+        new_mode.update_abilities(&mut abilities);
 
         // --- 3. Send sync packets to client ---
 

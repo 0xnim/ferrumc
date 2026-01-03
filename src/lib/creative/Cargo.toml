@@ -1,0 +1,31 @@
+[package]
+name = "ferrumc-creative"
+description = "FerrumC Creative Game Mode - Implements creative mode mechanics"
+edition.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# API crates
+ferrumc-api = { path = "../api" }
+ferrumc-api-server = { path = "../api-server" }
+
+# Core crates
+ferrumc-commands = { workspace = true }
+ferrumc-components = { workspace = true }
+ferrumc-core = { workspace = true }
+ferrumc-macros = { workspace = true }
+ferrumc-messages = { workspace = true }
+ferrumc-net = { workspace = true }
+ferrumc-text = { workspace = true }
+
+# ECS
+bevy_ecs = { workspace = true }
+
+# Registration
+ctor = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
