@@ -83,11 +83,14 @@ macro_rules! impl_event {
     };
 }
 
+/// Type alias for event handler function wrapped in Arc.
+pub type ArcEventHandler<E> = std::sync::Arc<dyn Fn(&mut E, &mut World) + Send + Sync>;
+
 /// A stored event listener with priority information.
 #[derive(Clone)]
 pub struct EventListener<E: Event> {
     /// The handler function
-    pub handler: std::sync::Arc<dyn Fn(&mut E, &mut World) + Send + Sync>,
+    pub handler: ArcEventHandler<E>,
     /// Handler priority
     pub priority: EventPriority,
     /// Mod that registered this listener

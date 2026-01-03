@@ -67,14 +67,14 @@ pub fn accept_new_connections(
             .map(|data| {
                 // A. Found in cache, use cached data
                 (
-                    data.abilities.clone(),
-                    data.gamemode.clone(),
+                    data.abilities,
+                    data.gamemode,
                     data.position,
                     data.rotation,
                     data.inventory.clone(),
-                    data.health.clone(),
-                    data.hunger.clone(),
-                    data.experience.clone(),
+                    data.health,
+                    data.hunger,
+                    data.experience,
                     data.ender_chest.clone(),
                     data.active_effects.clone(),
                 )

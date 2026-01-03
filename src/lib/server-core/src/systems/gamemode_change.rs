@@ -44,7 +44,7 @@ pub fn handle(
         // --- 3. Send sync packets to client ---
 
         // 3a. Game Event packet (changes the client's UI, e.g., hearts)
-        let gamemode_packet = GameEventPacket::new(3, new_mode as u8 as f32);
+        let gamemode_packet = GameEventPacket::new(3, f32::from(new_mode as u8));
         if let Err(e) = writer.send_packet_ref(&gamemode_packet) {
             error!(
                 "Failed to send gamemode change packet to {}: {:?}",

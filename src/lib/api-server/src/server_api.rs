@@ -9,12 +9,14 @@ use parking_lot::RwLock;
 
 use ferrumc_api::behavior::{BlockBehavior, CollectibleBehavior, EntityBehavior};
 use ferrumc_api::provider::ComponentProvider;
+use ferrumc_api::world::WorldAccess;
 use ferrumc_api::{CoreApi, ServerApi, TickSystem};
 use ferrumc_commands::BuiltCommand;
 
 use crate::registries::{
     BlockBehaviorRegistry, ComponentProviderRegistry, EntityBehaviorRegistry, ItemBehaviorRegistry,
 };
+use crate::world_accessor::WorldAccessor;
 
 /// Server-side API implementation.
 ///
@@ -33,6 +35,8 @@ pub struct ServerApiImpl {
     pub tick_systems: RwLock<Vec<TickSystem>>,
     /// Commands registered via the builder API
     pub commands: RwLock<Vec<BuiltCommand>>,
+    /// World accessor for block/chunk operations
+    world_accessor: Option<Arc<WorldAccessor>>,
 }
 
 impl ServerApiImpl {
@@ -45,7 +49,15 @@ impl ServerApiImpl {
             component_providers: ComponentProviderRegistry::new(),
             tick_systems: RwLock::new(Vec::new()),
             commands: RwLock::new(Vec::new()),
+            world_accessor: None,
         }
+    }
+
+    /// Set the world accessor.
+    ///
+    /// This must be called before passing the API to mods that use world().
+    pub fn set_world_accessor(&mut self, accessor: Arc<WorldAccessor>) {
+        self.world_accessor = Some(accessor);
     }
 
     /// Take ownership of the registries for insertion into the ECS world.
@@ -103,6 +115,13 @@ impl CoreApi for ServerApiImpl {
 }
 
 impl ServerApi for ServerApiImpl {
+    fn world(&self) -> &dyn WorldAccess {
+        self.world_accessor
+            .as_ref()
+            .expect("WorldAccessor not initialized - world() called before server startup")
+            .as_ref()
+    }
+
     fn register_tick_system(&mut self, system: TickSystem) {
         self.tick_systems.write().push(system);
     }

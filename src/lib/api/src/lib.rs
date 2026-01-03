@@ -34,8 +34,11 @@ pub mod components;
 pub mod context;
 pub mod event;
 pub mod provider;
+pub mod world;
 
 use std::sync::Arc;
+
+use world::WorldAccess;
 
 use behavior::{BlockBehavior, CollectibleBehavior, EntityBehavior};
 use ferrumc_commands::BuiltCommand;
@@ -50,6 +53,7 @@ pub mod prelude {
     pub use crate::context::*;
     pub use crate::event::{Event, EventHandler, EventPriority};
     pub use crate::provider::{ComponentProvider, EntitySetupContext, PlayerSetupContext};
+    pub use crate::world::WorldAccess;
     pub use crate::{CoreApi, ModSystem, ServerApi};
 
     // Command API re-exports
@@ -57,6 +61,10 @@ pub mod prelude {
         BoolArg, FloatArg, GameModeArg, GreedyStringArg, IntArg, LongArg, StringArg, WordArg,
     };
     pub use ferrumc_commands::{BuiltCommand, CommandBuilder, CommandContext, CommandResult};
+
+    // World types re-exports
+    pub use ferrumc_world::block_state_id::BlockStateId;
+    pub use ferrumc_world::pos::{BlockPos, ChunkPos};
 }
 
 /// Core trait for all mods.
@@ -155,6 +163,23 @@ pub trait CoreApi: Send + Sync {
 ///
 /// Provides access to world, events, and server systems.
 pub trait ServerApi: CoreApi {
+    /// Get access to the game world for block/chunk operations.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// fn start_server_side(&self, api: &mut dyn ServerApi) {
+    ///     let world = api.world();
+    ///
+    ///     // Read a block
+    ///     let block = world.get_block(BlockPos::new(0, 64, 0), "overworld")?;
+    ///
+    ///     // Set a block
+    ///     world.set_block(BlockPos::new(0, 65, 0), "overworld", BlockStateId::new(1))?;
+    /// }
+    /// ```
+    fn world(&self) -> &dyn WorldAccess;
+
     /// Register a function to be called every game tick.
     fn register_tick_system(&mut self, system: TickSystem);
 

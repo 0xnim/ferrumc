@@ -85,7 +85,7 @@ pub fn handle_start_digging(
         };
 
         // First check behaviors for hardness override (e.g., creative mode instant break)
-        let behavior_hardness = block_behaviors.get_hardness(&block_name, &block_ctx);
+        let behavior_hardness = block_behaviors.get_hardness(block_name, &block_ctx);
 
         // Fallback to vanilla hardness from block data
         let hardness = behavior_hardness.unwrap_or_else(|| {

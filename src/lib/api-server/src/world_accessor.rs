@@ -122,7 +122,11 @@ impl WorldAccessor {
     /// * `dimension` - The dimension (currently only "overworld" supports generation)
     pub fn load_or_generate(&self, pos: ChunkPos, dimension: &str) -> Result<(), WorldError> {
         if !self.state.world.chunk_exists(pos, dimension)? {
-            let chunk = self.state.terrain_generator.generate_chunk(pos)?;
+            let chunk = self
+                .state
+                .terrain_generator
+                .generate_chunk(pos)
+                .map_err(|e| WorldError::WorldGenerationError(e.to_string()))?;
             self.state.world.insert_chunk(pos, dimension, chunk)?;
         }
         Ok(())
@@ -148,7 +152,7 @@ impl WorldAccessor {
     /// A vector of entity IDs that are within the radius.
     pub fn get_entities_in_radius(
         &self,
-        bevy_world: &World,
+        bevy_world: &mut World,
         center: DVec3,
         radius: f64,
     ) -> Vec<Entity> {
@@ -180,7 +184,7 @@ impl WorldAccessor {
     /// A vector of entity IDs that are within the bounding box.
     pub fn get_entities_in_box(
         &self,
-        bevy_world: &World,
+        bevy_world: &mut World,
         min: DVec3,
         max: DVec3,
     ) -> Vec<Entity> {
@@ -226,5 +230,36 @@ impl WorldAccessorResource {
     /// Create a new WorldAccessorResource from GlobalState.
     pub fn new(state: GlobalState) -> Self {
         Self(Arc::new(WorldAccessor::new(state)))
+    }
+}
+
+// =========================================================================
+// WorldAccess Trait Implementation
+// =========================================================================
+
+impl ferrumc_api::world::WorldAccess for WorldAccessor {
+    fn get_block(&self, pos: BlockPos, dimension: &str) -> Result<BlockStateId, WorldError> {
+        self.get_block_and_fetch(pos, dimension)
+    }
+
+    fn set_block(
+        &self,
+        pos: BlockPos,
+        dimension: &str,
+        block: BlockStateId,
+    ) -> Result<(), WorldError> {
+        self.set_block_and_fetch(pos, dimension, block)
+    }
+
+    fn chunk_exists(&self, pos: ChunkPos, dimension: &str) -> Result<bool, WorldError> {
+        self.chunk_exists(pos, dimension)
+    }
+
+    fn is_chunk_cached(&self, pos: ChunkPos, dimension: &str) -> bool {
+        self.is_chunk_cached(pos, dimension)
+    }
+
+    fn load_or_generate(&self, pos: ChunkPos, dimension: &str) -> Result<(), WorldError> {
+        self.load_or_generate(pos, dimension)
     }
 }

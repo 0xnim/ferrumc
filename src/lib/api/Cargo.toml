@@ -8,7 +8,8 @@ version.workspace = true
 workspace = true
 
 [dependencies]
-# Minimal dependencies - API traits only, no server internals
+# Core dependencies for API traits
 bevy_ecs = { workspace = true }
 thiserror = { workspace = true }
 ferrumc-commands = { path = "../commands" }
+ferrumc-world = { path = "../world" }

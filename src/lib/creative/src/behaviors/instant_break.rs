@@ -30,13 +30,9 @@ impl BlockBehavior for InstantBreakBehavior {
         }
     }
 
-    fn on_broken(&self, ctx: &mut BlockContext) -> Handling {
-        // In creative mode, breaking is instant - just pass through
-        // The hardness of 0 handles the actual instant breaking
-        if ctx.is_player_creative() {
-            Handling::Pass // Allow break but other behaviors can still run
-        } else {
-            Handling::Pass
-        }
+    fn on_broken(&self, _ctx: &mut BlockContext) -> Handling {
+        // Always pass - the hardness of 0 handles instant breaking for creative
+        // Other behaviors can still process the break event
+        Handling::Pass
     }
 }

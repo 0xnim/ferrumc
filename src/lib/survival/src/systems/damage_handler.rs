@@ -19,6 +19,7 @@ use tracing::{error, info};
 /// 2. Skips entities with `DamageImmune` component
 /// 3. Applies damage to Health component
 /// 4. Sends `SetHealth` packet to update client UI
+#[expect(clippy::type_complexity)]
 pub fn handle_damage(
     mut events: MessageReader<PlayerDamaged>,
     mut query: Query<(

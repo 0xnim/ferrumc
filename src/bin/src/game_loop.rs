@@ -19,7 +19,7 @@ use crate::systems::shutdown_systems::register_shutdown_systems;
 use bevy_ecs::prelude::World;
 use bevy_ecs::schedule::{ExecutorKind, Schedule};
 use crossbeam_channel::Sender;
-use ferrumc_api_server::{ModLoader, ServerApiImpl};
+use ferrumc_api_server::{ModLoader, ServerApiImpl, WorldAccessorResource};
 use ferrumc_commands::dispatch::dispatch_dynamic_commands;
 use ferrumc_commands::infrastructure::{register_command_systems, register_dynamic_command};
 use ferrumc_config::server_config::get_global_config;
@@ -135,8 +135,13 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     // Insert mod-specific resources
     ecs_world.insert_resource(ferrumc_survival::systems::damage_test::DamageTestTimer::default());
 
+    // Create and insert world accessor resource for mods to access the game world
+    let world_accessor = WorldAccessorResource::new(global_state.clone());
+    ecs_world.insert_resource(world_accessor.clone());
+
     // Recreate API for server-side initialization (registries are now in ECS)
     let mut api = ServerApiImpl::new();
+    api.set_world_accessor(world_accessor.0);
 
     // Call start_server_side() on all mods - register systems, event listeners
     for mod_system in mod_loader.mods_in_order() {

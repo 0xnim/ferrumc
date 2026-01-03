@@ -70,6 +70,13 @@ impl ModSystem for SurvivalMod {
 
         // Register component provider to add survival components to players
         api.register_player_component_provider(Arc::new(SurvivalComponentProvider));
+
+        // Example: Use world access to check spawn block
+        let world = api.world();
+        match world.get_block(BlockPos::of(0, 64, 0), "overworld") {
+            Ok(block) => info!("Block at spawn (0, 64, 0): {:?}", block),
+            Err(e) => info!("Could not read spawn block (world not loaded yet): {}", e),
+        }
     }
 
     fn assets_loaded(&self, _api: &mut dyn ServerApi) {
