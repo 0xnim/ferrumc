@@ -39,7 +39,8 @@ pub fn handle_start_digging(
 ) {
     for event in events.read() {
         // Get player abilities to check for creative mode
-        let Ok((_, writer, _, abilities, player_dimension)) = player_query.get_mut(event.player)
+        let Ok((_, writer, existing_dig, abilities, player_dimension)) =
+            player_query.get_mut(event.player)
         else {
             warn!("Player {:?} not found in query", event.player);
             continue;
@@ -50,10 +51,17 @@ pub fn handle_start_digging(
             continue;
         }
 
-        debug!(
-            "Player {:?} started digging at {:?}",
-            event.player, event.position
-        );
+        if let Some(existing) = existing_dig {
+            debug!(
+                "Player {:?} switching dig from {:?} to {:?}",
+                event.player, existing.block_pos, event.position
+            );
+        } else {
+            debug!(
+                "Player {:?} started digging at {:?}",
+                event.player, event.position
+            );
+        }
 
         let is_creative = false; // Survival mode only reaches here
 
@@ -157,29 +165,38 @@ pub fn handle_start_digging(
 }
 
 /// Handles the PlayerCancelDiggingEvent.
-/// This system stops the digging timer.
+///
+/// NOTE: We intentionally do NOT remove the PlayerDigging component here.
+/// Due to Bevy's deferred command system, if a Start and Cancel event arrive
+/// in the same tick, the Cancel might see stale data and remove the wrong
+/// component. Instead:
+/// - New digs replace the component via insert
+/// - Finished digs check position and remove the component
+/// - Stale components are harmless and get cleaned up naturally
 pub fn handle_cancel_digging(
-    mut commands: Commands,
     mut events: MessageReader<PlayerCancelledDigging>,
-    mut player_query: Query<DiggingPlayerQuery>,
+    player_query: Query<DiggingPlayerQuery>,
 ) {
     for event in events.read() {
-        debug!("Player {:?} cancelled digging.", event.player);
+        let Ok((_, writer, _, _, _)) = player_query.get(event.player) else {
+            continue;
+        };
 
-        // Remove the component to stop the timer.
-        commands.entity(event.player).remove::<PlayerDigging>();
+        debug!(
+            "Player {:?} cancelled digging at {:?}",
+            event.player, event.position
+        );
 
-        // Acknowledge the cancellation.
-        if let Ok((_, writer, _, _, _)) = player_query.get_mut(event.player) {
-            let ack_packet = BlockChangeAck {
-                sequence: event.sequence,
-            };
-            if let Err(e) = writer.send_packet_ref(&ack_packet) {
-                error!(
-                    "Failed to send cancel_dig ACK to {:?}: {:?}",
-                    event.player, e
-                );
-            }
+        // Just acknowledge the cancellation - don't remove the component
+        // to avoid race conditions with deferred commands
+        let ack_packet = BlockChangeAck {
+            sequence: event.sequence,
+        };
+        if let Err(e) = writer.send_packet_ref(&ack_packet) {
+            error!(
+                "Failed to send cancel_dig ACK to {:?}: {:?}",
+                event.player, e
+            );
         }
     }
 }
@@ -222,18 +239,18 @@ pub fn handle_finish_digging(
 
         // --- 1. Validate the Dig ---
         if digging.block_pos != event.position {
-            warn!(
-                "Player {:?} finished digging the wrong block. (Expected {:?}, got {:?})",
-                event.player, digging.block_pos, event.position
+            debug!(
+                "Player {:?} sent finish for {:?} but currently digging {:?} (ignoring late finish)",
+                event.player, event.position, digging.block_pos
             );
             // Don't break the block, but still ACK
+            // IMPORTANT: Don't remove the component - player is still digging a different block!
             let ack_packet = BlockChangeAck {
                 sequence: event.sequence,
             };
             if let Err(e) = writer.send_packet_ref(&ack_packet) {
                 error!("Failed to send fail_dig ACK to {:?}: {:?}", event.player, e);
             }
-            commands.entity(event.player).remove::<PlayerDigging>();
             continue;
         }
 

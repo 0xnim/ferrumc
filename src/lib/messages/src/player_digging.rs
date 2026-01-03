@@ -22,6 +22,7 @@ pub struct PlayerStartedDigging {
 #[allow(unused)]
 pub struct PlayerCancelledDigging {
     pub player: Entity,
+    pub position: NetworkPosition,
     pub sequence: VarInt,
 }
 

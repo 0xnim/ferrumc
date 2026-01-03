@@ -33,9 +33,10 @@ pub fn handle(
             }
             1 => {
                 // Cancelled digging
-                trace!("Player {:?} cancelled digging", trigger_eid);
+                trace!("Player {:?} cancelled digging at {:?}", trigger_eid, event.location);
                 cancel_dig_events.write(PlayerCancelledDigging {
                     player: trigger_eid,
+                    position: event.location,
                     sequence: event.sequence,
                 });
             }
