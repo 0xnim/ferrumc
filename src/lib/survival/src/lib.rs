@@ -22,8 +22,8 @@ pub mod systems;
 
 use std::sync::Arc;
 
-use bevy_ecs::prelude::*;
-use ferrumc_api::prelude::*;
+use bevy_ecs::prelude::EntityCommands;
+use ferrumc_api::prelude::{ComponentProvider, PlayerSetupContext};
 use ferrumc_api::{CoreApi, ModSystem, ServerApi};
 use ferrumc_api_server::register_mod;
 use tracing::info;
@@ -40,29 +40,8 @@ impl ModSystem for SurvivalMod {
         env!("CARGO_PKG_VERSION")
     }
 
-    fn start(&self, api: &mut dyn CoreApi) {
+    fn start(&self, _api: &mut dyn CoreApi) {
         info!("Survival mod starting...");
-
-        // Register a test command to verify the builder API works
-        api.register_command(
-            CommandBuilder::new("survivaltest")
-                .description("Test command from survival mod")
-                .handler(|ctx| {
-                    ctx.sender.send_message(
-                        ferrumc_text::TextComponentBuilder::new("Hello from survival mod!")
-                            .color(ferrumc_text::NamedColor::Green)
-                            .build(),
-                        false,
-                    );
-                    Ok(())
-                })
-                .build(),
-        );
-
-        // TODO: Register behaviors
-        // api.register_entity_behavior("player", Arc::new(HungerBehavior));
-        // api.register_entity_behavior("player", Arc::new(HealthBehavior));
-        // api.register_entity_behavior("player", Arc::new(FallDamageBehavior));
     }
 
     fn start_server_side(&self, api: &mut dyn ServerApi) {
@@ -73,7 +52,6 @@ impl ModSystem for SurvivalMod {
 
         // Register ECS resources needed by survival systems
         api.register_resources(Box::new(|world| {
-            world.insert_resource(systems::damage_test::DamageTestTimer::default());
             world.insert_resource(systems::hunger_tick::HungerTickTimer::default());
         }));
 
@@ -86,9 +64,6 @@ impl ModSystem for SurvivalMod {
 
             // Hunger mechanics
             schedule.add_systems(hunger_tick::tick);
-
-            // Damage test (temporary)
-            schedule.add_systems(damage_test::tick);
 
             // Damage handling
             schedule.add_systems(damage_handler::handle_damage);
@@ -107,13 +82,6 @@ impl ModSystem for SurvivalMod {
             schedule.add_systems(combat::handle_combat);
             schedule.add_systems(combat::tick_cooldowns);
         }));
-
-        // Example: Use world access to check spawn block
-        let world = api.world();
-        match world.get_block(BlockPos::of(0, 64, 0), Dimension::Overworld) {
-            Ok(block) => info!("Block at spawn (0, 64, 0): {:?}", block),
-            Err(e) => info!("Could not read spawn block (world not loaded yet): {}", e),
-        }
     }
 
     fn assets_loaded(&self, _api: &mut dyn ServerApi) {

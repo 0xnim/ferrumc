@@ -2,7 +2,7 @@ use ferrumc_config::server_config::get_global_config;
 use rand::prelude::IndexedRandom;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use tokio::net::UdpSocket;
-use tracing::error;
+use tracing::trace;
 
 pub struct LanPinger {
     socket: UdpSocket,
@@ -31,12 +31,14 @@ impl LanPinger {
     pub async fn send(&mut self) {
         let announcement = self.announcement();
 
+        // LAN broadcast failures are expected when not on a local network
+        // (e.g., "No route to host" on macOS), so log at trace level only
         if let Err(err) = self
             .socket
             .send_to(announcement.as_bytes(), self.addr)
             .await
         {
-            error!("Failed sending LAN UDP Packet: {err}")
+            trace!("LAN broadcast unavailable: {err}");
         }
     }
 }

@@ -134,11 +134,19 @@ pub fn accept_new_connections(
         ));
 
         // --- 4. Let mods add their components via providers ---
+        // Build the cached data context for providers with the gamemode
+        let provider_cached_data = CachedPlayerData {
+            position: Some((position.x, position.y, position.z)),
+            rotation: Some((rotation.yaw, rotation.pitch)),
+            game_mode: Some(gamemode as u8),
+            mod_data: Default::default(),
+        };
+
         let setup_ctx = PlayerSetupContext {
             uuid: new_connection.player_identity.uuid.as_u128(),
             username: new_connection.player_identity.username.clone(),
             is_new_player,
-            cached_data: cached_data.map(|_| CachedPlayerData::default()), // TODO: Convert actual cached data
+            cached_data: Some(provider_cached_data),
         };
 
         for provider in component_providers.get_player_providers() {
