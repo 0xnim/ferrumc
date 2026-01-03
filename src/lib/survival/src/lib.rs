@@ -66,10 +66,47 @@ impl ModSystem for SurvivalMod {
     }
 
     fn start_server_side(&self, api: &mut dyn ServerApi) {
-        info!("Survival mod registering server-side components...");
+        info!("Survival mod registering server-side systems...");
 
         // Register component provider to add survival components to players
         api.register_player_component_provider(Arc::new(SurvivalComponentProvider));
+
+        // Register ECS resources needed by survival systems
+        api.register_resources(Box::new(|world| {
+            world.insert_resource(systems::damage_test::DamageTestTimer::default());
+            world.insert_resource(systems::hunger_tick::HungerTickTimer::default());
+        }));
+
+        // Register survival gameplay systems
+        api.register_gameplay_systems(Box::new(|schedule| {
+            use systems::*;
+
+            // Fall damage detection
+            schedule.add_systems(fall_damage::handle_fall_damage);
+
+            // Hunger mechanics
+            schedule.add_systems(hunger_tick::tick);
+
+            // Damage test (temporary)
+            schedule.add_systems(damage_test::tick);
+
+            // Damage handling
+            schedule.add_systems(damage_handler::handle_damage);
+
+            // Death handling
+            schedule.add_systems(death_handler::handle_death);
+
+            // Respawn handling
+            schedule.add_systems(respawn::handle_respawn_request);
+
+            // Eating systems
+            schedule.add_systems(eating::handle_use_item);
+            schedule.add_systems(eating::tick_eating);
+
+            // Combat systems
+            schedule.add_systems(combat::handle_combat);
+            schedule.add_systems(combat::tick_cooldowns);
+        }));
 
         // Example: Use world access to check spawn block
         let world = api.world();

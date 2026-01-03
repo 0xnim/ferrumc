@@ -5,6 +5,7 @@ pub mod client_bound_known_packs;
 pub mod disconnect;
 pub mod finish_configuration;
 pub mod game_event;
+pub mod hurt_animation;
 pub mod keep_alive;
 pub mod login_disconnect;
 pub mod login_play;
@@ -52,6 +53,7 @@ pub mod set_container_slot;
 pub mod set_player_inventory_slot;
 
 pub mod particle;
+pub mod respawn;
 pub mod set_health;
 
 pub mod unload_chunk;

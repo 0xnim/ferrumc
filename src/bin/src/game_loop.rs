@@ -132,9 +132,6 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
     ecs_world.insert_resource(item_behaviors);
     ecs_world.insert_resource(component_providers);
 
-    // Insert mod-specific resources
-    ecs_world.insert_resource(ferrumc_survival::systems::damage_test::DamageTestTimer::default());
-
     // Create and insert world accessor resource for mods to access the game world
     let world_accessor = WorldAccessorResource::new(global_state.clone());
     ecs_world.insert_resource(world_accessor.clone());
@@ -149,8 +146,23 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
         mod_system.start_server_side(&mut api);
     }
 
+    // Collect mod-registered resources and systems
+    let resource_builders = api.take_resource_builders();
+    let gameplay_system_builders = api.take_gameplay_system_builders();
+
+    // Apply mod resource builders to ECS world
+    if !resource_builders.is_empty() {
+        debug!(
+            "Applying {} resource builder(s) from mods...",
+            resource_builders.len()
+        );
+        for builder in resource_builders {
+            builder(&mut ecs_world);
+        }
+    }
+
     // Build the timed scheduler with all periodic schedules (tick, sync, keepalive)
-    let mut timed = build_timed_scheduler();
+    let mut timed = build_timed_scheduler(gameplay_system_builders);
 
     // Call assets_loaded() and assets_finalize() on all mods
     for mod_system in mod_loader.mods_in_order() {
@@ -309,7 +321,12 @@ pub fn start_game_loop(global_state: GlobalState) -> Result<(), BinaryError> {
 /// - **tick**: Main game tick (player updates, packets, commands) - runs at configured TPS
 /// - **world_sync**: Persists world data to disk - every 15 seconds
 /// - **keepalive**: Sends keepalive packets to prevent timeouts - every 1 second
-fn build_timed_scheduler() -> Scheduler {
+///
+/// # Arguments
+/// * `gameplay_system_builders` - System builders registered by mods via the API
+fn build_timed_scheduler(
+    gameplay_system_builders: Vec<ferrumc_api::ScheduleBuilder>,
+) -> Scheduler {
     let mut timed = Scheduler::new();
 
     // -------------------------------------------------------------------------
@@ -318,7 +335,7 @@ fn build_timed_scheduler() -> Scheduler {
     // This is the core game tick that runs at the configured TPS (ticks per second).
     // It processes packets, updates players, handles commands, and runs game systems.
     // Uses Burst behavior to catch up if ticks are missed (up to 5 at a time).
-    let build_tick = |s: &mut Schedule| {
+    let build_tick = move |s: &mut Schedule| {
         s.set_executor_kind(ExecutorKind::SingleThreaded);
         register_packet_handlers(s); // Handle incoming packets from players
         register_player_systems(s); // Update player state (position, inventory, etc.)
@@ -328,6 +345,11 @@ fn build_timed_scheduler() -> Scheduler {
         register_gameplay_listeners(s); // Event listeners for gameplay events
         register_physics(s); // Physics systems (movement, collision, etc.)
         register_mob_systems(s); // Mob AI and behavior
+
+        // Apply mod-registered gameplay systems
+        for builder in gameplay_system_builders {
+            builder(s);
+        }
     };
     let tick_period = Duration::from_secs(1) / get_global_config().tps;
     timed.register(

@@ -2,7 +2,8 @@ use crate::{
     active_effects::ActiveEffects,
     health::Health,
     player::{
-        abilities::PlayerAbilities, experience::Experience, gamemode::GameModeComponent,
+        abilities::PlayerAbilities, attack_cooldown::AttackCooldown, experience::Experience,
+        fall_distance::FallDistance, gamemode::GameModeComponent,
         gameplay_state::ender_chest::EnderChest, hunger::Hunger, swimming::SwimmingState,
     },
 };
@@ -43,4 +44,8 @@ pub struct PlayerBundle {
 
     // Movement State
     pub swimming: SwimmingState,
+    pub fall_distance: FallDistance,
+
+    // Combat
+    pub attack_cooldown: AttackCooldown,
 }

@@ -43,10 +43,10 @@ pub struct TimedSchedule {
 }
 
 impl TimedSchedule {
-    pub fn new<N, B>(name: N, period: Duration, mut build: B) -> Self
+    pub fn new<N, B>(name: N, period: Duration, build: B) -> Self
     where
         N: Into<String>,
-        B: FnMut(&mut Schedule),
+        B: FnOnce(&mut Schedule),
     {
         let mut schedule = Schedule::default();
         build(&mut schedule);

@@ -12,9 +12,9 @@ pub fn register_gameplay_listeners(schedule: &mut bevy_ecs::schedule::Schedule) 
     schedule.add_systems(digging_system::handle_cancel_digging);
     schedule.add_systems(digging_system::handle_finish_digging);
 
-    // Systems from mod crates
+    // Systems from mod crates (TODO: migrate to mod API like survival)
     schedule.add_systems(ferrumc_server_core::systems::gamemode_change::handle);
     schedule.add_systems(ferrumc_creative::systems::gamemode_sync::handle);
-    schedule.add_systems(ferrumc_survival::systems::damage_test::tick);
-    schedule.add_systems(ferrumc_survival::systems::damage_handler::handle_damage);
+
+    // Survival systems are now registered via the mod API in ferrumc_survival::SurvivalMod
 }

@@ -54,7 +54,7 @@ pub mod prelude {
     pub use crate::event::{Event, EventHandler, EventPriority};
     pub use crate::provider::{ComponentProvider, EntitySetupContext, PlayerSetupContext};
     pub use crate::world::{Dimension, WorldAccess};
-    pub use crate::{CoreApi, ModSystem, ServerApi};
+    pub use crate::{CoreApi, ModSystem, ResourceBuilder, ScheduleBuilder, ServerApi};
 
     // Command API re-exports
     pub use ferrumc_commands::arg::builders::{
@@ -197,7 +197,63 @@ pub trait ServerApi: CoreApi {
         entity_type: &str,
         provider: Arc<dyn ComponentProvider>,
     );
+
+    /// Register gameplay systems that run every game tick.
+    ///
+    /// Use this to add Bevy ECS systems with full parameter injection support.
+    /// Systems are added to the main tick schedule.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// fn start_server_side(&self, api: &mut dyn ServerApi) {
+    ///     api.register_gameplay_systems(Box::new(|schedule| {
+    ///         schedule.add_systems(my_damage_handler);
+    ///         schedule.add_systems(my_hunger_system);
+    ///     }));
+    /// }
+    /// ```
+    fn register_gameplay_systems(&mut self, builder: ScheduleBuilder);
+
+    /// Register ECS resources needed by mod systems.
+    ///
+    /// Use this to insert resources (timers, config, state) into the
+    /// ECS world that your systems depend on.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// fn start_server_side(&self, api: &mut dyn ServerApi) {
+    ///     api.register_resources(Box::new(|world| {
+    ///         world.insert_resource(MyTimer::default());
+    ///     }));
+    /// }
+    /// ```
+    fn register_resources(&mut self, builder: ResourceBuilder);
 }
 
 /// A system that runs every game tick.
 pub type TickSystem = Box<dyn Fn(&mut bevy_ecs::world::World) + Send + Sync>;
+
+/// A builder function that registers systems to a Bevy schedule.
+///
+/// This allows mods to register their Bevy ECS systems using the full
+/// power of Bevy's system API (parameter injection, system sets, etc.).
+///
+/// # Example
+///
+/// ```ignore
+/// fn start_server_side(&self, api: &mut dyn ServerApi) {
+///     api.register_gameplay_systems(Box::new(|schedule| {
+///         schedule.add_systems(my_system);
+///         schedule.add_systems((system_a, system_b));
+///     }));
+/// }
+/// ```
+pub type ScheduleBuilder = Box<dyn FnOnce(&mut bevy_ecs::schedule::Schedule) + Send>;
+
+/// A builder function that registers ECS resources to the world.
+///
+/// This allows mods to insert their resources (timers, config, etc.)
+/// into the ECS world during initialization.
+pub type ResourceBuilder = Box<dyn FnOnce(&mut bevy_ecs::world::World) + Send>;

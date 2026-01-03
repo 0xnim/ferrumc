@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 
 use ferrumc_api::behavior::{BlockBehavior, CollectibleBehavior, EntityBehavior};
 use ferrumc_api::provider::ComponentProvider;
 use ferrumc_api::world::WorldAccess;
-use ferrumc_api::{CoreApi, ServerApi, TickSystem};
+use ferrumc_api::{CoreApi, ResourceBuilder, ScheduleBuilder, ServerApi, TickSystem};
 use ferrumc_commands::BuiltCommand;
 
 use crate::registries::{
@@ -31,10 +31,16 @@ pub struct ServerApiImpl {
     pub item_behaviors: ItemBehaviorRegistry,
     /// Component provider registry
     pub component_providers: ComponentProviderRegistry,
-    /// Tick systems to register
+    /// Tick systems to register (legacy closure-based)
     pub tick_systems: RwLock<Vec<TickSystem>>,
     /// Commands registered via the builder API
     pub commands: RwLock<Vec<BuiltCommand>>,
+    /// Gameplay system builders (for Bevy ECS systems)
+    /// Uses Mutex because FnOnce is not Sync
+    pub gameplay_system_builders: Mutex<Vec<ScheduleBuilder>>,
+    /// Resource builders (for ECS resources)
+    /// Uses Mutex because FnOnce is not Sync
+    pub resource_builders: Mutex<Vec<ResourceBuilder>>,
     /// World accessor for block/chunk operations
     world_accessor: Option<Arc<WorldAccessor>>,
 }
@@ -49,6 +55,8 @@ impl ServerApiImpl {
             component_providers: ComponentProviderRegistry::new(),
             tick_systems: RwLock::new(Vec::new()),
             commands: RwLock::new(Vec::new()),
+            gameplay_system_builders: Mutex::new(Vec::new()),
+            resource_builders: Mutex::new(Vec::new()),
             world_accessor: None,
         }
     }
@@ -87,6 +95,16 @@ impl ServerApiImpl {
     /// Take the commands for registration.
     pub fn take_commands(&self) -> Vec<BuiltCommand> {
         std::mem::take(&mut *self.commands.write())
+    }
+
+    /// Take the gameplay system builders for registration.
+    pub fn take_gameplay_system_builders(&self) -> Vec<ScheduleBuilder> {
+        std::mem::take(&mut *self.gameplay_system_builders.lock())
+    }
+
+    /// Take the resource builders for registration.
+    pub fn take_resource_builders(&self) -> Vec<ResourceBuilder> {
+        std::mem::take(&mut *self.resource_builders.lock())
     }
 }
 
@@ -137,5 +155,13 @@ impl ServerApi for ServerApiImpl {
     ) {
         self.component_providers
             .register_entity_provider(entity_type, provider);
+    }
+
+    fn register_gameplay_systems(&mut self, builder: ScheduleBuilder) {
+        self.gameplay_system_builders.lock().push(builder);
+    }
+
+    fn register_resources(&mut self, builder: ResourceBuilder) {
+        self.resource_builders.lock().push(builder);
     }
 }

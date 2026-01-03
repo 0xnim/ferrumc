@@ -7,7 +7,9 @@ use ferrumc_components::{
     health::Health,
     player::{
         abilities::PlayerAbilities,
+        attack_cooldown::AttackCooldown,
         experience::Experience,
+        fall_distance::FallDistance,
         gamemode::{GameMode, GameModeComponent},
         gameplay_state::ender_chest::EnderChest,
         hunger::Hunger,
@@ -112,6 +114,8 @@ pub fn accept_new_connections(
             experience,
             active_effects,
             swimming: SwimmingState::default(),
+            fall_distance: FallDistance::default(),
+            attack_cooldown: AttackCooldown::default(),
         };
 
         // --- 3. Spawn the PlayerBundle, then .insert() the network components ---

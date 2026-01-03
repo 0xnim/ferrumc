@@ -6,7 +6,7 @@
 use bevy_ecs::prelude::*;
 use ferrumc_components::health::Health;
 use ferrumc_core::identity::player_identity::PlayerIdentity;
-use ferrumc_messages::PlayerDamaged;
+use ferrumc_messages::{DamageSource, PlayerDamaged};
 use tracing::info;
 
 /// Tracks ticks for the damage test system.
@@ -56,6 +56,7 @@ pub fn tick(
         damage_events.write(PlayerDamaged {
             player: entity,
             amount: 1.0,
+            source: DamageSource::Generic,
         });
     }
 }

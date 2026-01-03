@@ -1,6 +1,9 @@
 pub mod abilities;
+pub mod attack_cooldown;
 pub mod client_information;
+pub mod dead;
 pub mod experience;
+pub mod fall_distance;
 pub mod gamemode;
 pub mod gameplay_state;
 pub mod hunger;
